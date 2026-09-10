@@ -1,14 +1,14 @@
+import type {SqlDatabase} from '../server/database';
 import assert from 'node:assert/strict';
 import {D1,type Statement} from './sqlite-d1';
 import {readFileSync,readdirSync,mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {Repository,portalSnapshot} from '../server/repository';
-import {type Actor,AppError} from '../server/commands';
 import {balance,loanCount,loanValue,merchantExposure,dayOffset} from '../app/domain';
 const folder=mkdtempSync(join(tmpdir(),'elo-db-check-'));const path=join(folder,'db.sqlite');
-const db=new D1(path);for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('drizzle/'+f,'utf8'));
-let repo=new Repository(db as unknown as D1Database);
+const db=new D1(path);for(const f of readdirSync('tests/fixtures/sqlite').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('tests/fixtures/sqlite/'+f,'utf8'));
+let repo=new Repository(db as unknown as SqlDatabase,{id:'owner-test',email:'lopesleticia297@gmail.com'});
 const owner=await repo.actor({userId:'owner-test',email:'lopesleticia297@gmail.com',displayName:'Proprietária'});
 assert.equal(owner.role,'owner');assert.equal((await repo.read(owner)).state.pieces.length,0);
 await assert.rejects(repo.actor({userId:'other-user',email:'outsider@example.com',displayName:'Outro usuário'}),/não está habilitado/);
@@ -55,7 +55,7 @@ await assert.rejects(repo.execute(owner,failureId,beforeRevision,{kind:'stock.mo
 db.batch=originalBatch;snapshot=await repo.read(owner);assert.equal(JSON.stringify(snapshot.state),beforeFailure);assert.equal(snapshot.revision,beforeRevision);
 assert.equal(await db.prepare('SELECT id FROM commands WHERE id=?').bind(failureId).first(),null);
 // Persist across a new SQLite connection and repository instance.
-db.sqlite.close();const reopened=new D1(path);repo=new Repository(reopened as unknown as D1Database);const reloaded=await repo.read(owner);assert.deepEqual(reloaded.state,snapshot.state);assert.equal(reloaded.revision,snapshot.revision);assert.equal(reloaded.state.movements.every(m=>!!m.actorName),true);
+db.sqlite.close();const reopened=new D1(path);repo=new Repository(reopened as unknown as SqlDatabase,{id:'owner-test',email:'lopesleticia297@gmail.com'});const reloaded=await repo.read(owner);assert.deepEqual(reloaded.state,snapshot.state);assert.equal(reloaded.revision,snapshot.revision);assert.equal(reloaded.state.movements.every(m=>!!m.actorName),true);
 const borrowedValue=loanValue(reloaded.state.loans.find(l=>l.id===otherLoanId)!);snapshot=reloaded;const part=snapshot.state.pieces[0];await execute({kind:'piece.save',piece:{...part,value:20000}});assert.equal(loanValue(snapshot.state.loans.find(l=>l.id===otherLoanId)!),borrowedValue);
 reopened.sqlite.close();rmSync(folder,{recursive:true,force:true});
 console.log('OK: durable reload, empty initial stock, owner bootstrap, partner identity binding, portal isolation, server authorization, immutable prices, atomic last-unit race, rollback, idempotency, partial return, quarantine, sales, partial payments, reversal and extension approval.');

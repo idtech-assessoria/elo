@@ -1,3 +1,4 @@
+import type {SqlDatabase} from '../server/database';
 import assert from 'node:assert/strict';
 import {createHmac,createHash} from 'node:crypto';
 import {createContext,runInContext} from 'node:vm';
@@ -11,7 +12,7 @@ import {gmailScript} from '../server/gmail-script';
 import {gmailRequest,defaultGmail} from '../server/gmail-bridge';
 import {dayOffset} from '../app/domain';
 const testSecret='c'.repeat(64);const endpoint='https://script.google.com/macros/s/'+('testdeployment_'.repeat(4))+'/exec';
-const properties=new Map<string,string>();const sent:any[]=[];let user=defaultGmail;let quota=100;let busy=false;let crash=false;let dropResponse=false;let redirects=false;let malformed=false;let tamper=false;let lastRequest:any;
+const properties=new Map<string,string>();const sent:unknown[]=[];let user=defaultGmail;let quota=100;let busy=false;let crash=false;let dropResponse=false;let redirects=false;let malformed=false;let tamper=false;let lastRequest!:{payload:string;signature:string;timestamp:number;nonce:string};
 const context=createContext({
  ContentService:{MimeType:{JSON:'json'},createTextOutput(text:string){return {text,setMimeType(){return this}}}},
  Utilities:{Charset:{UTF_8:'utf8'},DigestAlgorithm:{SHA_256:'sha256'},computeHmacSha256Signature:(s:string,key:string)=>Array.from(createHmac('sha256',key).update(s).digest()),computeDigest:(_:string,s:string)=>Array.from(createHash('sha256').update(s).digest())},
@@ -46,8 +47,8 @@ busy=true;assert.equal((await gmailRequest(endpoint,testSecret,{action:'send',se
 quota=0;assert.equal((await gmailRequest(endpoint,testSecret,{action:'send',sender:defaultGmail,id:'email-quota',email:body},transport)).code,'quota');assert.equal(sent.length,1);quota=100;
 crash=true;assert.equal((await gmailRequest(endpoint,testSecret,{action:'send',sender:defaultGmail,id:'email-crash',email:body},transport)).code,'uncertain');crash=false;assert.equal(sent.length,2);assert.equal((await gmailRequest(endpoint,testSecret,{action:'send',sender:defaultGmail,id:'email-crash',email:body},transport)).code,'uncertain');assert.equal(sent.length,2);
 // Full repository, setup and outbox round trip through the exact generated Google code.
-const folder=mkdtempSync(join(tmpdir(),'elo-gmail-check-'));const db=new D1(join(folder,'test.sqlite'));for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('drizzle/'+f,'utf8'));
-const binding=db as unknown as D1Database;const repo=new Repository(binding);const actor=await repo.actor({userId:'owner-test',email:'lopesleticia297@gmail.com',displayName:'Dona'});let state=await repo.read(actor);const messaging=new Messaging(binding,'a'.repeat(64),transport);
+const folder=mkdtempSync(join(tmpdir(),'elo-gmail-check-'));const db=new D1(join(folder,'test.sqlite'));for(const f of readdirSync('tests/fixtures/sqlite').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('tests/fixtures/sqlite/'+f,'utf8'));
+const binding=db as unknown as SqlDatabase;const repo=new Repository(binding,{id:'owner-test',email:'lopesleticia297@gmail.com'});const actor=await repo.actor({userId:'owner-test',email:'lopesleticia297@gmail.com',displayName:'Dona'});let state=await repo.read(actor);const messaging=new Messaging(binding,'a'.repeat(64),transport);
 const outsider={id:'foreign',name:'Lojista',email:'other@gmail.com',role:'merchant' as const,merchantId:'m'};await assert.rejects(messaging.prepareGmail(outsider),/administradora/);await assert.rejects(messaging.gmailCode(outsider),/administradora/);
 assert.equal((await messaging.snapshot(actor)).gmailSetup!.sender,defaultGmail);await messaging.prepareGmail(actor);const setup=await messaging.gmailCode(actor);assert.equal(setup.sender,defaultGmail);assert.ok(setup.script.includes(defaultGmail));await messaging.prepareGmail(actor);assert.equal((await messaging.gmailCode(actor)).script,setup.script);assert.equal((await messaging.snapshot(actor)).connection.configured,false);
 // Constants need a new context for a second script instance.

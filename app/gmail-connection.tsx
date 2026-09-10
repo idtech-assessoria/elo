@@ -1,11 +1,10 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useState} from 'react';
 import {Copy,ExternalLink,Mail,ShieldCheck,Check,LoaderCircle} from 'lucide-react';
 import {toast} from 'sonner';
 import type {Messages} from './notifications';
 export function GmailConnection({messages,onConnected}:{messages:Messages;onConnected:()=>void}){
  const prepared=messages.data.gmailSetup;const [sender,setSender]=useState(prepared?.sender||'idtech.assessoria@gmail.com');const [endpoint,setEndpoint]=useState(messages.data.connection.provider==='gmail'?messages.data.connection.endpoint||'':'');const [code,setCode]=useState('');const [copied,setCopied]=useState(false);const [loadingCode,setLoadingCode]=useState(false);
- useEffect(()=>{if(prepared?.sender)setSender(prepared.sender)},[prepared?.sender]);
  const ready=!!prepared?.prepared&&prepared.sender===sender.trim().toLowerCase();
  async function copyCode(){setLoadingCode(true);try{const r=await fetch('/api/messaging/gmail-code',{cache:'no-store'});const v=await r.json() as {script?:string;sender?:string;error?:string};if(!r.ok||!v.script||v.sender!==sender.trim().toLowerCase())throw Error(v.error||'Prepare a conexão para este Gmail primeiro.');setCode(v.script);try{await navigator.clipboard.writeText(v.script);setCopied(true);toast.success('Código copiado. Cole no seu projeto Google Apps Script.')}catch{toast.info('Selecione e copie o código exibido abaixo.')}}catch(e){toast.error((e as Error).message)}finally{setLoadingCode(false)}}
  return <div className="gmail-setup"><div className="gmail-setup-intro"><Mail size={24}/><div><strong>Use sua conta Gmail para enviar os avisos</strong><p>A configuração é feita uma vez na sua conta Google. Não exige domínio nem acesso à sua caixa de entrada.</p></div></div>

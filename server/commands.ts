@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type State,type Piece,type Merchant,type Loan,type Event,type Settings,createLoan,settleItem,uid,stamp,today,validDate,remaining,loanCount,loanValue,balance,money,makeNoticePair,defaultSettings,dateLabel } from '../app/domain';
+import { type State,type Piece,type Merchant,type Loan,createLoan,settleItem,uid,stamp,today,validDate,loanCount,balance,money,makeNoticePair,defaultSettings,dateLabel } from '../app/domain';
 export type Actor={id:string;name:string;email:string;role:'owner'|'merchant';merchantId?:string};
 export class AppError extends Error{status:number;constructor(message:string,status=400){super(message);this.status=status}}
 const id=z.string().min(1).max(100);const note=z.string().trim().min(3,'Informe um motivo com pelo menos 3 caracteres.').max(1500);const short=z.string().trim().min(1).max(200);const qty=z.number().int().min(1).max(99999);const cents=z.number().int().min(1).max(100000000);const date=z.string().refine(validDate,'Informe uma data válida.');

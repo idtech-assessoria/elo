@@ -1,3 +1,5 @@
+import type {SqlDatabase,SqlResult} from './database';
+import {appOrigin} from './config';
 import {z} from 'zod';
 import {type State,type Notice,defaultSettings} from '../app/domain';
 import {type EmailDelivery,type EmailStatus,type MessagingSnapshot,whatsappPhone} from '../app/messaging-types';
@@ -6,7 +8,6 @@ import {encryptApiKey,decryptApiKey} from './message-encryption';
 import {defaultGmail,gmailRequest,gmailEndpoint,gmailError} from './gmail-bridge';
 import {gmailScript} from './gmail-script';
 const WORKSPACE='primary';
-export const SITE_URL='https://elo-pecas.lopesleticia297.chatgpt.site';
 const now=()=>new Date().toISOString();
 const email=z.string().trim().email().max(150);
 const safeWindow=23*60*60*1000; // Resend retains idempotency keys for 24h; keep a safety margin.
@@ -16,20 +17,20 @@ const view=(r:Row):EmailDelivery=>({provider:r.provider,id:r.id,noticeId:r.notic
 function owner(actor:Actor){if(actor.role!=='owner')throw new AppError('Somente a administradora pode gerenciar os envios.',403)}
 const parse=<T>(schema:z.ZodType<T>,input:unknown):T=>{const r=schema.safeParse(input);if(!r.success)throw new AppError('Confira os campos da conexão e tente novamente.');return r.data};
 function recipient(s:State,n:Notice){const m=s.merchants.find(m=>m.id===n.merchantId)!;const a=s.settings||defaultSettings;return n.audience==='Você'?{email:a.email,name:a.contact||a.name,phone:a.phone}:{email:m.email,name:m.contact||m.name,phone:m.phone}}
-export function outboxInsert(db:D1Database,s:State,n:Notice){
+export function outboxInsert(db:SqlDatabase,s:State,n:Notice){
  const r=recipient(s,n);const address=email.safeParse(r.email).success?r.email.trim().toLowerCase():'';
  return db.prepare("INSERT INTO email_outbox (id,workspace_id,notice_id,loan_id,audience,recipient,recipient_name,phone,status,subject,body,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,CASE WHEN ?='' THEN 'missing_recipient' WHEN COALESCE((SELECT enabled FROM messaging_connections WHERE workspace_id=?),0)=1 THEN 'queued' ELSE 'awaiting_connection' END,?,?,?,?)")
   .bind('email-'+n.id,WORKSPACE,n.id,n.loanId,n.audience,address,r.name,r.phone,address,WORKSPACE,`${n.title} · ${n.loanId}`,n.body,n.at,n.at);
 }
 const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function payload(row:Row,c:Connection){
- const link=SITE_URL+(row.audience==='Lojista'?'/portal':'/');
+ const link=appOrigin()+(row.audience==='Lojista'?'/portal':'/');
  const text=row.body+`\n\nAcompanhar no Elo: ${link}\nO acesso ao portal depende da liberação do seu e-mail pela assistência.`;
  return JSON.stringify({from:c.sender,to:[row.recipient],subject:row.subject,text,html:`<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f5f7f5;font-family:Arial,sans-serif;color:#263d33"><div style="max-width:600px;margin:24px auto;background:white;border:1px solid #dfe7e1;border-radius:16px;overflow:hidden"><div style="background:#163d30;padding:24px;color:#deedb4;font-size:28px;font-weight:bold">elo <span style="font-size:12px;color:white">PEÇAS & EMPRÉSTIMOS</span></div><div style="padding:28px"><h1 style="font-size:22px">${escapeHtml(row.subject)}</h1><p style="line-height:1.6;white-space:pre-wrap">${escapeHtml(row.body)}</p><p style="margin-top:28px"><a href="${link}" style="background:#163d30;color:white;padding:12px 20px;border-radius:8px;display:inline-block;text-decoration:none">Acompanhar no Elo</a></p><p style="font-size:12px;color:#69786f">O portal exige acesso liberado para o seu e-mail. Receber esta mensagem não confirma o aceite das peças. Fale com a assistência se identificar alguma divergência.</p></div></div></body></html>`});
 }
 function providerError(status:number){return status===401||status===403?'Confira a chave de API, a permissão e o domínio do remetente no Resend.':status===429?'Limite do serviço atingido. A fila aguardará antes de tentar novamente.':status===409?'O serviço encontrou um conflito na identificação do envio. Confira o registro no Resend.':status>=500?'O serviço está temporariamente indisponível. A mensagem foi preservada.':'O serviço recusou a mensagem. Confira o remetente, o destinatário e a situação da conta no Resend.'}
 export class Messaging{
- constructor(public db:D1Database,private secret?:string,private transport:typeof fetch=fetch){}
+ constructor(public db:SqlDatabase,private secret?:string,private transport:typeof fetch=fetch){}
  private async connection(){return this.db.prepare('SELECT encrypted_key,sender,enabled,revision,verified_at,provider,endpoint,quota_remaining FROM messaging_connections WHERE workspace_id=?').bind(WORKSPACE).first<Connection>()}
  private async row(id:string){const r=await this.db.prepare('SELECT * FROM email_outbox WHERE id=? AND workspace_id=?').bind(id,WORKSPACE).first<Row>();if(!r)throw new AppError('Mensagem não encontrada.',404);return r}
  async snapshot(actor:Actor):Promise<MessagingSnapshot>{owner(actor);const c=await this.connection();const rows=await this.db.prepare('SELECT * FROM email_outbox WHERE workspace_id=? ORDER BY created_at DESC,id DESC').bind(WORKSPACE).all<Row>();const setup=await this.db.prepare('SELECT sender FROM gmail_setups WHERE workspace_id=?').bind(WORKSPACE).first<{sender:string}>();return {gmailSetup:{sender:setup?.sender||defaultGmail,prepared:!!setup},connection:{provider:c?.provider||'gmail',endpoint:c?.endpoint||'',quotaRemaining:c?.quota_remaining??null,configured:!!c,enabled:!!c?.enabled,sender:c?.sender||'',revision:c?.revision||0,verifiedAt:c?.verified_at||null,encryptionReady:!!this.secret&&/^[a-f0-9]{64}$/i.test(this.secret)},deliveries:rows.results.map(view)}}
@@ -46,7 +47,7 @@ export class Messaging{
   const setup=await this.db.prepare('SELECT sender,encrypted_secret FROM gmail_setups WHERE workspace_id=?').bind(WORKSPACE).first<{sender:string;encrypted_secret:string}>();if(!setup)throw new AppError('Prepare a conexão e copie o código para o Google primeiro.');
   const key=await decryptApiKey(setup.encrypted_secret,this.secret);let reply;try{reply=await gmailRequest(v.endpoint,key,{action:'health',sender:setup.sender},this.transport)}catch(e){if(e instanceof AppError)throw e;throw new AppError('O Google não respondeu a tempo. A conexão anterior foi preservada. Tente novamente.',503)}
   if(!reply.ok)throw new AppError(gmailError(reply.code));if(reply.protocol!=='elo-gmail-1'||reply.sender!==setup.sender)throw new AppError('O script não confirmou a conta Gmail esperada.');
-  const at=now();let result:D1Result;
+  const at=now();let result:SqlResult;
   if(old)result=await this.db.prepare("UPDATE messaging_connections SET encrypted_key=?,sender=?,provider='gmail',endpoint=?,quota_remaining=?,enabled=1,revision=revision+1,verified_at=?,updated_at=? WHERE workspace_id=? AND revision=?").bind(setup.encrypted_secret,setup.sender,v.endpoint,reply.quotaRemaining??null,at,at,WORKSPACE,v.revision).run();
   else result=await this.db.prepare("INSERT INTO messaging_connections (workspace_id,encrypted_key,sender,provider,endpoint,quota_remaining,enabled,revision,verified_at,updated_at) VALUES (?,?,?,'gmail',?,?,1,1,?,?) ON CONFLICT(workspace_id) DO NOTHING").bind(WORKSPACE,setup.encrypted_secret,setup.sender,v.endpoint,reply.quotaRemaining??null,at,at).run();
   if(!result.meta.changes)throw new AppError('A conexão foi alterada durante a verificação. Atualize a central.',409);
@@ -63,7 +64,7 @@ export class Messaging{
    if(match){verified=match.status==='verified';break}if(!data.has_more||!data.data?.length)break;after=data.data.at(-1)!.id;
   }
   if(!verified)throw new AppError('O domínio deste remetente ainda não está verificado no Resend. Verifique o domínio antes de ativar os envios.');
-  const encrypted=await encryptApiKey(apiKey,this.secret);const at=now();let r:D1Result;
+  const encrypted=await encryptApiKey(apiKey,this.secret);const at=now();let r:SqlResult;
   if(old)r=await this.db.prepare("UPDATE messaging_connections SET encrypted_key=?,sender=?,provider='resend',endpoint=NULL,quota_remaining=NULL,enabled=1,revision=revision+1,verified_at=?,updated_at=? WHERE workspace_id=? AND revision=?").bind(encrypted,sender,at,at,WORKSPACE,v.revision).run();
   else r=await this.db.prepare('INSERT INTO messaging_connections (workspace_id,encrypted_key,sender,enabled,revision,verified_at,updated_at) VALUES (?,?,?,1,1,?,?) ON CONFLICT(workspace_id) DO NOTHING').bind(WORKSPACE,encrypted,sender,at,at).run();
   if(!r.meta.changes)throw new AppError('A conexão mudou durante a gravação. Atualize a central.',409);

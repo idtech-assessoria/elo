@@ -1,0 +1,46 @@
+name: Quality Gates
+on:
+  push:
+    branches: [main, migration/github-supabase-resend]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: elo_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-test-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elo_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      APP_URL: https://elo.example
+      TEST_DATABASE_URL: postgres://postgres:local-test-only@127.0.0.1:5432/elo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run audit:prod
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:domain
+      - run: npm run test:auth
+      - run: npm run test:legacy
+      - run: npm run test:postgres
+      - run: npm run build
+      - run: npm run test:http

@@ -1,9 +1,10 @@
 'use client';
 import {useState,useEffect,useRef,useCallback} from 'react';
-import {Bell,Mail,MessageSquare,CheckCheck,ArrowRight,Copy,Settings2,RefreshCw,Send,CheckCircle2,TriangleAlert,Clock3,ExternalLink,Pause,Play,ShieldCheck,X,Search} from 'lucide-react';
+import {Bell,Mail,MessageSquare,CheckCheck,ArrowRight,Copy,Settings2,RefreshCw,Send,TriangleAlert,Clock3,ExternalLink,ShieldCheck,Search} from 'lucide-react';
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from '@/components/ui/dialog';
 import {Tabs,TabsList,TabsTrigger} from '@/components/ui/tabs';
 import {Switch} from '@/components/ui/switch';
+import {fetchJson} from '../lib/api-client';
 import {toast} from 'sonner';
 import {GmailConnection} from './gmail-connection';
 import {type Notice,type State,dateLabel} from './domain';
@@ -11,7 +12,7 @@ import {type MessagingSnapshot,type EmailDelivery,emailStatus,whatsappPhone} fro
 const initial:MessagingSnapshot={connection:{configured:false,enabled:false,sender:'',revision:0,verifiedAt:null,encryptionReady:false},deliveries:[]};
 export function useMessaging(enabled:boolean,changed:string){
  const [data,setData]=useState<MessagingSnapshot>(initial);const [error,setError]=useState('');const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const running=useRef(false);const testId=useRef('');const sequence=useRef(0);
- const refresh=useCallback(async()=>{if(running.current)return;const seq=++sequence.current;try{const r=await fetch('/api/messaging',{cache:'no-store'});const v=await r.json() as MessagingSnapshot&{error?:string};if(!r.ok)throw Error(v.error||'Não foi possível carregar os envios.');if(seq===sequence.current){setData(v);setError('')}}catch(e){if(seq===sequence.current)setError((e as Error).message)}finally{setLoading(false)}},[]);
+ const refresh=useCallback(()=>{if(running.current)return Promise.resolve();const seq=++sequence.current;return fetchJson<MessagingSnapshot>('/api/messaging').then(v=>{if(seq===sequence.current){setData(v);setError('')}}).catch(e=>{if(seq===sequence.current)setError((e as Error).message)}).finally(()=>setLoading(false))},[]);
  const action=useCallback(async(input:Record<string,unknown>,quiet=false)=>{if(running.current)return false;running.current=true;sequence.current++;if(!quiet)setBusy(true);if(input.kind==='test'){if(!testId.current)testId.current=crypto.randomUUID();input={...input,id:testId.current}}
   try{const r=await fetch('/api/messaging',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});const v=await r.json() as MessagingSnapshot&{error?:string};if(!r.ok)throw Error(v.error||'Não foi possível concluir a solicitação.');setData(v);setError('');if(input.kind==='test')testId.current='';return true}catch(e){if(!quiet)toast.error((e as Error).message,{duration:7000});else setError((e as Error).message);return false}finally{running.current=false;if(!quiet)setBusy(false)}
  },[]);
@@ -41,17 +42,16 @@ export function NotificationsCenter({state,messages,openNotice,markRead}:{state:
    {!visible.length&&<div className="empty-state"><Bell size={30}/><h3>{search||filter!=='all'?'Nenhum aviso neste filtro':'Sua comunicação começa na primeira retirada'}</h3><p>{search||filter!=='all'?'Ajuste a busca ou escolha outro filtro.':'Ao registrar um empréstimo, o Elo cria um aviso para você e outro para o lojista.'}</p></div>}
   </section>
   <div className="notification-footnote"><Clock3 size={16}/><p>Vencimentos são conferidos ao abrir o painel. A fila de e-mails avança nas operações e a cada 30 segundos enquanto o painel está visível. O agendamento com o sistema fechado ainda não está ativo.</p></div>
-  <ConnectionDialog open={settings} onClose={()=>setSettings(false)} messages={messages}/>
+  <ConnectionDialog key={String(settings)+c.revision} open={settings} onClose={()=>setSettings(false)} messages={messages}/>
  </>;
 }
 function ConnectionDialog({open,onClose,messages}:{open:boolean;onClose:()=>void;messages:Messages}){
- const c=messages.data.connection;const [sender,setSender]=useState(c.sender);const [apiKey,setApiKey]=useState('');const [edit,setEdit]=useState(!c.configured);const [provider,setProvider]=useState<string>(c.provider||'gmail');
- useEffect(()=>{if(open){setSender(c.provider==='resend'?c.sender:'');setApiKey('');setEdit(!c.configured);setProvider(c.provider||'gmail')}else setApiKey('')},[open,c.sender,c.configured,c.provider]);
+ const c=messages.data.connection;const [sender,setSender]=useState(c.provider==='resend'?c.sender:'');const [apiKey,setApiKey]=useState('');const [edit,setEdit]=useState(!c.configured);const [provider,setProvider]=useState<string>(c.provider||'gmail');
  const tests=messages.data.deliveries.filter(d=>!d.noticeId).slice(0,3);
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}><DialogContent className="elo-dialog connection-dialog"><DialogHeader><span className="eyebrow">CANAIS DE ENVIO</span><DialogTitle>{c.configured&&!edit?'Seu e-mail de envio':'Conectar o e-mail da assistência'}</DialogTitle><DialogDescription>Avisos para você e para o lojista nas próximas operações.</DialogDescription></DialogHeader><div className="dialog-body">
   {c.configured&&!edit?<><div className="connection-ready"><ShieldCheck size={27}/><div><strong>{c.sender}</strong><p>{c.provider==='gmail'?'Gmail autorizado':'Domínio verificado'} em {c.verifiedAt?time(c.verifiedAt):'—'}.</p></div></div>{c.provider==='gmail'&&<p className="small">Última cota informada pelo Google: <strong>{c.quotaRemaining??'—'} destinatários</strong>. A cota pode ser compartilhada com outros scripts da conta. A conexão confirma envio; entrega e leitura não são informadas.</p>}<label className="setting-row"><span><strong>Enviar e-mails nas próximas operações</strong><small>Avisos anteriores aguardam sua revisão individual.</small></span><Switch checked={c.enabled} disabled={messages.busy} onCheckedChange={async enabled=>{await messages.action({kind:'pause',enabled,revision:c.revision})}}/></label><div className="button-row"><button className="btn secondary" disabled={messages.busy||!c.enabled} onClick={async()=>{if(await messages.action({kind:'test'}))toast.success('Teste registrado para o e-mail da sua conta de acesso ao Elo. Confira o status abaixo.')}}><Send size={16}/>Enviar teste para mim</button><button className="text-button" onClick={()=>setEdit(true)}>Alterar conexão</button></div></>:<>
    <Tabs value={provider} onValueChange={setProvider}><TabsList className="filter-tabs"><TabsTrigger value="gmail">Gmail · sem domínio</TabsTrigger><TabsTrigger value="resend">Resend · domínio próprio</TabsTrigger></TabsList></Tabs>
-   {provider==='gmail'?<GmailConnection messages={messages} onConnected={()=>setEdit(false)}/>:<form onSubmit={async e=>{e.preventDefault();if(await messages.action({kind:'configure',sender,revision:c.revision,...(apiKey?{apiKey}:{})})){setApiKey('');setEdit(false);toast.success('Domínio verificado. E-mail conectado para as próximas operações.')}}}>
+   {provider==='gmail'?<GmailConnection key={messages.data.gmailSetup?.sender||'new'} messages={messages} onConnected={()=>setEdit(false)}/>:<form onSubmit={async e=>{e.preventDefault();if(await messages.action({kind:'configure',sender,revision:c.revision,...(apiKey?{apiKey}:{})})){setApiKey('');setEdit(false);toast.success('Domínio verificado. E-mail conectado para as próximas operações.')}}}>
     <div className="info-box"><Mail size={18}/><span>Use um remetente do seu domínio verificado no Resend. Para usar @gmail.com, selecione a opção Gmail acima.</span></div>
     <label className="field">E-mail que enviará os avisos *<input type="email" autoComplete="email" value={sender} onChange={e=>setSender(e.target.value)} required maxLength={150} placeholder="avisos@suaassistencia.com.br"/></label>
     <label className="field">Chave de API do Resend {c.configured&&c.provider==='resend'?'(opcional para manter a atual)':'*'}<input type="password" autoComplete="new-password" value={apiKey} onChange={e=>setApiKey(e.target.value)} required={!c.configured||c.provider!=='resend'} maxLength={220} placeholder={c.configured&&c.provider==='resend'?'Deixe vazio para manter a credencial':'re_…'}/><small>Use acesso completo para validar o domínio e consultar entregas. A chave é protegida no servidor.</small></label>
@@ -65,9 +65,8 @@ function ConnectionDialog({open,onClose,messages}:{open:boolean;onClose:()=>void
  </div><div className="dialog-footer"><button className="btn secondary" onClick={onClose}>Concluir</button></div></DialogContent></Dialog>;
 }
 export function NoticeDialog({notice,state,messages,onClose,openLoan}:{notice:Notice|null;state:State;messages:Messages;onClose:()=>void;openLoan:(id:string)=>void}){
- const row=messages.data.deliveries.find(d=>d.noticeId===notice?.id);const [draft,setDraft]=useState('');const [ready,setReady]=useState(false);const [confirmSend,setConfirmSend]=useState(false);const [cancelConfirm,setCancelConfirm]=useState(false);
  const portalLink=typeof window!=='undefined'?window.location.origin+(notice?.audience==='Lojista'?'/portal':'/'):'';
- useEffect(()=>{setDraft((notice?.body||'')+'\n\nAcompanhar no Elo: '+portalLink);setReady(false);setConfirmSend(false);setCancelConfirm(false)},[notice?.id,portalLink]);
+ const row=messages.data.deliveries.find(d=>d.noticeId===notice?.id);const [draft,setDraft]=useState((notice?.body||'')+'\n\nAcompanhar no Elo: '+portalLink);const [ready,setReady]=useState(false);const [confirmSend,setConfirmSend]=useState(false);const [cancelConfirm,setCancelConfirm]=useState(false);
  const name=notice?.audience==='Você'?'você':state.merchants.find(m=>m.id===notice?.merchantId)?.name;const phone=whatsappPhone(row?.phone||'');const editable=!!row&&row.attempts===0&&['missing_recipient','awaiting_connection'].includes(row.status);
  return <Dialog open={!!notice} onOpenChange={o=>{if(!o)onClose()}}><DialogContent className="elo-dialog message-detail"><DialogHeader><DialogTitle>{notice?.title}</DialogTitle><DialogDescription>{notice?.loanId} · Aviso para {name}</DialogDescription></DialogHeader><div className="dialog-body">
   <div className="message-delivery-status"><div><span className="icon-tile"><Mail size={19}/></span><div><strong>{row?.recipient||'E-mail não cadastrado'}</strong><small>{row?.recipientName||name}</small></div></div><Badge row={row}/></div>

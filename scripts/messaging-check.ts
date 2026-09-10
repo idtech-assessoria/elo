@@ -1,3 +1,4 @@
+import type {SqlDatabase} from '../server/database';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -7,13 +8,13 @@ import {Repository} from '../server/repository';
 import {Messaging} from '../server/outbox';
 import {decryptApiKey} from '../server/message-encryption';
 import {dayOffset} from '../app/domain';
-const folder=mkdtempSync(join(tmpdir(),'elo-email-check-'));const db=new D1(join(folder,'test.sqlite'));for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('drizzle/'+f,'utf8'));
-const binding=db as unknown as D1Database;const repo=new Repository(binding);const actor=await repo.actor({userId:'owner-test',email:'lopesleticia297@gmail.com',displayName:'Dona'});let state=await repo.read(actor);
+const folder=mkdtempSync(join(tmpdir(),'elo-email-check-'));const db=new D1(join(folder,'test.sqlite'));for(const f of readdirSync('tests/fixtures/sqlite').filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync('tests/fixtures/sqlite/'+f,'utf8'));
+const binding=db as unknown as SqlDatabase;const repo=new Repository(binding,{id:'owner-test',email:'lopesleticia297@gmail.com'});const actor=await repo.actor({userId:'owner-test',email:'lopesleticia297@gmail.com',displayName:'Dona'});let state=await repo.read(actor);
 async function command(input:unknown){const result=await repo.execute(actor,crypto.randomUUID(),state.revision,input);state=result;return result}
 const part=await command({kind:'piece.save',piece:{name:'Tela <b>teste</b>',sku:'T-01',category:'Telas',compatible:'Modelo X',quality:'Nova',location:'Gaveta',available:20,minimum:1,cost:5000,value:9000}});const pieceId=String(part.result.id);
 const merchant=await command({kind:'merchant.save',merchant:{name:'Loja Teste',contact:'Parceiro',email:'parceiro@example.com',phone:'31999999999',city:'Betim',limit:500000,active:true,portalEnabled:true}});const merchantId=String(merchant.result.id);
 const input={kind:'loan.create',merchantId,due:dayOffset(3),items:{[pieceId]:1},notes:'Conferida <script>exemplo</script>'};const cmdId=crypto.randomUUID();const revision=state.revision;state=await repo.execute(actor,cmdId,revision,input);
-let calls:{url:string;key:string;body:string}[]=[];let mode='ok';let deliveredEvent='delivered';
+const calls:{url:string;key:string;body:string}[]=[];let mode='ok';const deliveredEvent='delivered';
 const fakeFetch=(async(url:RequestInfo|URL,options?:RequestInit)=>{const uri=String(url);if(uri.includes('/domains'))return Response.json({data:[{id:'domain-test',name:'assistencia.example',status:mode==='unverified'?'pending':'verified'}],has_more:false});
  if(options?.method==='POST'){calls.push({url:uri,key:String((options.headers as Record<string,string>)['Idempotency-Key']),body:String(options.body)});if(mode==='timeout')throw Error('timeout');if(mode==='429')return Response.json({error:'limit'},{status:429});return Response.json({id:crypto.randomUUID()})}
  return Response.json({last_event:deliveredEvent});}) as typeof fetch;
