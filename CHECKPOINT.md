@@ -18,9 +18,14 @@
 - HTTP do build: PKCE, cookies HttpOnly/Secure, callback interno, CSRF e cache. Auth foi simulado em servidor local; nenhum e-mail enviado.
 - O ambiente local executa como root sem outro UID disponível e não inicia PostgreSQL nativo. PGlite tem uma conexão serializada. O workflow exige PostgreSQL 17 real para validar conexões concorrentes e leitura consistente.
 
-## Estado externo antes da publicação desta branch
+## Estado externo verificado
 
 - GitHub: `idtech-assessoria/elo`, privado, administração/gravação confirmadas.
-- Supabase ELO: acesso confirmado, inicialmente zero tabelas públicas e zero usuários. SQL preparado e testado; aplicação remota e resultado do CI serão registrados após a execução.
+- Código de migração publicado no commit `ffddfb864e032ccfbcf41e7c529f1afd686f7e61`. O [Quality Gates dessa versão](https://github.com/idtech-assessoria/elo/actions/runs/34539946363) passou integralmente, incluindo PostgreSQL 17 real com várias conexões, instalação limpa, auditoria de produção, lint, TypeScript, domínio, Auth, regressão SQLite/e-mail, build e HTTP. O [workflow da branch](https://github.com/idtech-assessoria/elo/actions/workflows/quality-gates.yml) acompanha as revisões seguintes.
+- Supabase ELO: migrações `20260910230036_elo_postgres_foundation` e `20260910230426_restrict_rls_event_trigger` aplicadas. Os nomes locais foram alinhados às versões efetivamente registradas pelo Supabase MCP; o SQL da fundação não mudou.
+- As 14 tabelas têm RLS; `anon` e `authenticated` não possuem SELECT/INSERT/UPDATE/DELETE. O papel do servidor lê apenas as colunas `id`, `user_id` e `not_after` de `auth.sessions`, sem acesso de leitura à tabela inteira.
+- O projeto já tinha a função administrativa `rls_auto_enable()` com execução pública. A segunda migração revogou EXECUTE de PUBLIC/anon/authenticated, mantendo o event trigger `ensure_rls` ativo. Foi acrescentado teste de regressão para essa permissão. [Orientação do Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable).
+- Após a correção, o Security Advisor retornou zero alertas. O Performance Advisor retornou 18 informações de índices ainda não utilizados; o banco está vazio, portanto ainda não há carga operacional para avaliar seu uso. Os índices foram mantidos por atenderem às consultas e chaves estrangeiras. [Orientação sobre índices sem uso](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
+- Todas as 14 tabelas continuam vazias e Auth continua sem usuários. Nenhuma assistência foi inicializada ou importada; o vínculo com a proprietária real permanece pendente.
 - Não foram criados usuários, dados fictícios, credenciais de envio, hospedagem ou contratação. Nenhum e-mail real foi enviado.
 - Pendem configuração segura de conexão/servidor, UUID real da proprietária, importação da assistência inicial, SMTP/Resend, hospedagem e validação integrada final.

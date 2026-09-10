@@ -5,7 +5,7 @@ Destino confirmado: Supabase **ELO**, referência `jrfmakgafcybhinjkalc`, São P
 ## Banco
 
 1. Confirme o projeto e obtenha a conexão PostgreSQL em **Connect**. Use uma conexão de migração com permissão de DDL e guarde a senha somente em `.env.local` ignorado ou no gerenciador de segredos da hospedagem.
-2. `npm run db:migrate` confere sem aplicar; `npm run db:migrate -- --apply` executa as migrações pendentes com o Supabase CLI. Confira o histórico remoto antes: uma migração aplicada via MCP não deve ser reaplicada sob outra versão. Alinhe o histórico local com a versão remota após conferir o SQL; não ignore erros de histórico.
+2. `npm run db:migrate` confere sem aplicar; `npm run db:migrate -- --apply` executa as migrações pendentes com o Supabase CLI. As duas migrações desta branch já estão aplicadas no ELO e seus nomes foram alinhados ao histórico remoto. Em outro ambiente vazio, serão aplicadas normalmente. Nunca reaplique uma migração existente sob outra versão nem ignore erros de histórico.
 3. O SQL cria `elo_backend` sem login, com acesso às tabelas do Elo e às colunas necessárias de `auth.sessions`. Configure um login exclusivo do servidor que herde esse papel. Não use permanentemente na aplicação a credencial administrativa de migração.
 4. Escolha a conexão direta ou pooler compatível com a hospedagem. O driver não cria prepared statements nomeados; cada lote usa a mesma conexão até o commit. Configure `DATABASE_SSL_CA` se a conexão exigir CA específica; nunca desative a verificação TLS.
 
@@ -17,8 +17,8 @@ O backup original tem uma assistência de revisão zero, sem peças, lojas, empr
 
 1. Configure a URL final no Supabase Auth e o callback exato `https://SEU-ENDERECO/auth/callback`. Localhost serve somente ao desenvolvimento.
 2. Configure SMTP próprio no Supabase, por exemplo Resend com domínio verificado. O SMTP do login é separado do canal de avisos dentro do Elo.
-3. A proprietária do backup é `lopesleticia297@gmail.com`. Obtenha o UUID de uma conta Supabase Auth cujo e-mail tenha sido confirmado pela titular. Envio real de convite/link depende da autorização correspondente; não crie usuário fictício nem marque o e-mail como confirmado sem verificação.
-4. Defina `ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID`. A conta do GitHub não substitui esse vínculo.
+3. A proprietária do backup é `lopesleticia297@gmail.com`. Confirme o e-mail no Supabase Auth e obtenha o UUID dessa conta real. Se usar o login do Elo para confirmar o e-mail, mantenha `ELO_OWNER_USER_ID` vazio no servidor: o link de acesso funciona, mas a assistência continua bloqueada e não é inicializada. Envio real de convite/link depende da autorização correspondente; não crie usuário fictício nem marque o e-mail como confirmado sem verificação.
+4. Defina `ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID` no ambiente da importação. Só configure o UUID no servidor da aplicação depois de importar, para impedir a inicialização automática antes da restauração. A conta do GitHub não substitui esse vínculo.
 5. Antes do primeiro acesso ao aplicativo, use `npm run db:import -- /caminho/dados/estado-operacional.json` para conferir o hash, o UUID/e-mail real e o banco vazio. Acrescente `--apply` para importar a única assistência, preservando configurações e data original e trocando somente o vínculo de identidade. A conexão de importação precisa consultar `auth.users`. O importador recusa banco com dados, não grava credenciais e não envia e-mails.
 
 ## Hospedagem e ativação

@@ -12,6 +12,10 @@ try {
   const tables = await admin.query("SELECT tablename,rowsecurity FROM pg_tables WHERE schemaname='public'");
   assert.equal(tables.rows.length, 14);
   assert.ok(tables.rows.every(t => t.rowsecurity));
+  for (const role of ['anon', 'authenticated']) {
+    const grant = await admin.query("SELECT has_function_privilege($1,'public.rls_auto_enable()','EXECUTE') AS allowed", [role]);
+    assert.equal(grant.rows[0].allowed, false, 'The administrative event trigger must not be callable by API roles');
+  }
   for (const role of ['anon', 'authenticated']) for (const table of tables.rows) {
     for (const permission of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
       const grant = await admin.query('SELECT has_table_privilege($1,$2,$3) AS allowed', [role, 'public.' + table.tablename, permission]);
