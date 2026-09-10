@@ -5,6 +5,8 @@ import { Messaging } from '../server/outbox';
 import { assertActiveSession } from '../server/session';
 import { AppError } from '../server/commands';
 import { balance, dayOffset } from '../app/domain';
+import type { Pool } from 'pg';
+import { checkInitialImport } from './import-check';
 
 const fixture = await postgresFixture();
 const { db, admin, real } = fixture;
@@ -29,6 +31,8 @@ try {
     await client.query('SELECT id,user_id,not_after FROM auth.sessions');
     await assert.rejects(client.query('SELECT private_fixture FROM auth.sessions'), /permission denied/);
   } finally { await client.query('ROLLBACK'); client.release(); }
+
+  await checkInitialImport(admin as unknown as Pool, db);
 
   const ownerId = '11111111-1111-4111-8111-111111111111';
   const partnerId = '22222222-2222-4222-8222-222222222222';

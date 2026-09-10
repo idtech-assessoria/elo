@@ -23,7 +23,7 @@ As rotas de banco usam Node.js. Não há dependência de D1, Cloudflare ou do ru
 
 O login em `/login` envia link mágico pelo Supabase Auth com PKCE; abra-o no mesmo navegador. O servidor verifica a identidade com `getUser(token)` e consulta `auth.sessions` para conferir expiração e revogação. Metadados editáveis não concedem permissões. Redirecionamentos aceitam apenas caminhos internos, escritas conferem a origem `APP_URL` e respostas autenticadas não podem ser armazenadas em cache.
 
-`ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID` definem explicitamente a proprietária. O identificador do Sites não é um UUID Supabase; a conta do GitHub também não determina a proprietária. Importe a assistência original antes do primeiro acesso, conforme [MIGRACAO.md](MIGRACAO.md). Para uma instalação nova, a inicialização exige ambos os valores e a identidade verificada correspondente.
+`ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID` definem explicitamente a proprietária. O e-mail de destino solicitado é `idtech.assessoria@gmail.com`; a troca autorizada está registrada em `config/owner-migration.json`. O identificador do Sites não é um UUID Supabase; a conta do GitHub também não determina a proprietária. Importe a assistência original antes do primeiro acesso, conforme [MIGRACAO.md](MIGRACAO.md). Para uma instalação nova, a inicialização exige ambos os valores e a identidade verificada correspondente.
 
 O portal exige e-mail cadastrado e habilitado, vinculado ao UUID no primeiro acesso verificado. Desabilitar o portal ou trocar o e-mail remove o vínculo. Cada leitura/gravação confere novamente a autorização. As APIs retornam apenas os registros do próprio lojista.
 
@@ -49,10 +49,10 @@ A fila avança nas operações e com o painel visível; vencimentos são verific
 | `npm run test:domain` | Regras de negócio |
 | `npm run test:auth` | Identidade, sessão, redirecionamentos, CSRF, TLS e limites de requisição |
 | `npm run test:legacy` | Três suítes SQLite, Resend e Gmail simulados |
-| `npm run test:postgres` | SQL/adaptador em PGlite local ou PostgreSQL real com `TEST_DATABASE_URL` |
+| `npm run test:postgres` | SQL/adaptador e importação com troca de proprietária, em PGlite local ou PostgreSQL real com `TEST_DATABASE_URL` |
 | `npm run build` | Build Next.js de produção |
 | `npm run test:http` | Rotas do build, PKCE/cookies/CSRF, Auth local simulado |
 
 O Quality Gates exige PostgreSQL 17 real no GitHub Actions, incluindo conexões concorrentes, sem fallback PGlite no CI. A base de teste precisa estar vazia e se chamar `elo_test` em localhost. Nenhum teste usa o Supabase de produção ou envia e-mails reais. PGlite tem uma conexão e sozinho não comprova concorrência entre conexões. Build e testes simulados não substituem validação final de Auth, SMTP, banco e hospedagem reais.
 
-Veja [MIGRACAO.md](MIGRACAO.md) e [CHECKPOINT.md](CHECKPOINT.md) para a origem verificada e os requisitos de ativação.
+Veja [MIGRACAO.md](MIGRACAO.md), [ATIVACAO.md](ATIVACAO.md) e [CHECKPOINT.md](CHECKPOINT.md) para a origem verificada e os requisitos de ativação. `render.yaml` contém a proposta de hospedagem para validação, ainda não aplicada.

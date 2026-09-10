@@ -1,0 +1,33 @@
+# Validation environment only. Review quotas/billing before creating the service.
+# No paid compute, database, disk, cron, or automatic deployment is requested here.
+previews:
+  generation: "off"
+services:
+  - type: web
+    name: elo-validacao
+    runtime: node
+    plan: free
+    region: virginia
+    repo: https://github.com/idtech-assessoria/elo
+    branch: migration/github-supabase-resend
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" npm start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: SUPABASE_URL
+        value: https://jrfmakgafcybhinjkalc.supabase.co
+      - key: ELO_OWNER_EMAIL
+        value: idtech.assessoria@gmail.com
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MESSAGING_ENCRYPTION_KEY
+        sync: false
+# Add ELO_OWNER_USER_ID only after Auth confirmation and the original backup import.
+# Set APP_URL explicitly if using a custom domain. Otherwise Render supplies its URL.

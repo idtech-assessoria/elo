@@ -3,7 +3,7 @@
 ## Origem comprovada
 
 - Backup: `elo-backup-completo-2026-09-10.zip`, SHA-256 `6f14d01974aeefb6b40e6cd22cb82f0bf84f7c3fa3428789eb6dd59eacc0574c`.
-- Os 138 arquivos do manifesto foram verificados sem divergência; as 139 linhas de SHA256SUMS também conferiram. O código tem 133 arquivos, relacionados em `ORIGEM-BACKUP.json`.
+- Os 138 arquivos do manifesto foram verificados sem divergência; as 139 linhas de SHA256SUMS também conferiram. O código tem 133 arquivos, relacionados em `docs/ORIGEM-BACKUP.json`.
 - Importação no GitHub: `82e20fe45385ec8f993aa18c9e8bf6b5f1258c55`, preservada na `main`.
 - O ZIP `elo-github-supabase-foundation.zip` e o pacote final descrito na conversa anterior não foram encontrados nesta sessão. O commit local informado `179a62e2ce3471022dd9ca577ee223a53b6bf75d` não foi recuperado. As correções relatadas naquela conversa não foram presumidas como presentes: esta branch aplica novamente a migração sobre o backup comprovado, preservando as funcionalidades.
 
@@ -29,3 +29,14 @@
 - Todas as 14 tabelas continuam vazias e Auth continua sem usuários. Nenhuma assistência foi inicializada ou importada; o vínculo com a proprietária real permanece pendente.
 - Não foram criados usuários, dados fictícios, credenciais de envio, hospedagem ou contratação. Nenhum e-mail real foi enviado.
 - Pendem configuração segura de conexão/servidor, UUID real da proprietária, importação da assistência inicial, SMTP/Resend, hospedagem e validação integrada final.
+
+## Continuação — proprietária e configuração de hospedagem
+
+- O usuário definiu `idtech.assessoria@gmail.com` como proprietária. `.env.example`, a proposta Render e `config/owner-migration.json` usam esse destino. O e-mail antigo continua registrado como origem, sem modificar o ZIP ou seu JSON operacional.
+- O importador agora confere o mapeamento autorizado, exige UUID e e-mail confirmado no Auth, bloqueia todas as tabelas de destino na transação e testa a inserção também no modo de conferência, com rollback. Preserva a data e as configurações da assistência, atualizando o contato que acompanhava o e-mail da antiga proprietária. Recusa repetição ou importação sobre dados existentes.
+- Os testes locais de importação passaram em PGlite: usuário inexistente, não confirmado, anônimo e identidade incorreta são recusados; conferência faz rollback, somente uma tentativa simultânea pode importar e contas de outro UUID não recebem acesso de proprietária. Um contato configurado separadamente é preservado. A mesma suíte roda no PostgreSQL 17 real exigido pelo CI.
+- Lint, TypeScript, PostgreSQL local, build Next.js e HTTP passaram. A execução do importador com o JSON original passou pela verificação de hash e parou no UUID ausente, como esperado; não tentou restaurar em produção.
+- `render.yaml` e `ATIVACAO.md` preparam a hospedagem Node.js 24 para validação, no plano gratuito, sem publicação automática nem criação de banco/disco/cron adicionais. O Blueprint passou pela validação contra o esquema JSON oficial do Render. Custos de produção e de eventual domínio ainda precisam ser apresentados antes da contratação. O servidor não foi criado.
+- Resend e Render foram conectados pelo usuário e passaram a aparecer instalados. As operações desses dois plugins ainda não constavam nas ferramentas disponíveis desta execução; domínios e serviços não foram consultados e nenhuma credencial foi inventada. O Supabase conectado continua sem operações administrativas de Auth/SMTP.
+- Uma consulta à Cloudflare foi bloqueada pela revisão automática porque a conexão disponível estava identificada com outra conta, sem vínculo comprovado com o Elo. Não houve nova tentativa ou alteração nessa conta; a alternativa preparada usa Render.
+- A reconferência do ELO confirmou 14 tabelas públicas com RLS, nenhuma assistência importada e nenhum usuário Auth para `idtech.assessoria@gmail.com`. Não houve envio real, publicação externa da aplicação ou contratação.
