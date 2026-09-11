@@ -12,6 +12,8 @@ Se ainda houver uma sessão aberta, usar **Minha senha de acesso** para escolher
 
 A alternativa opcional por link continua usando PKCE: abrir a mensagem mais recente no mesmo navegador em que foi solicitada. Reenvio é manual, com intervalo inicial de um minuto e sujeito ao SMTP do projeto. [Login por senha](https://supabase.com/docs/guides/auth/passwords) e [geração administrativa de códigos](https://supabase.com/docs/reference/javascript/auth-admin-generatelink).
 
+A tela de ativação está publicada, mas nenhum código foi emitido para a proprietária: a revisão automática bloqueou a função administrativa proposta por exigir autorização específica. O bloqueio, os limites da operação e a alternativa com sessão já aberta estão em [PRIMEIRA-SENHA.md](PRIMEIRA-SENHA.md).
+
 Manter os seguintes valores em [Supabase Auth > URL Configuration](https://supabase.com/dashboard/project/jrfmakgafcybhinjkalc/auth/url-configuration):
 
 | Campo | Valor |

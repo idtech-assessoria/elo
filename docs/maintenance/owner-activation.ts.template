@@ -1,0 +1,40 @@
+import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+
+// Temporary, narrowly scoped maintenance operation. Disable immediately after use.
+const expectedProject = 'https://jrfmakgafcybhinjkalc.supabase.co';
+const expectedId = '5b2063c2-077e-4c87-9556-cf4a68a8b5d2';
+const expectedEmail = 'idtech.assessoria@gmail.com';
+const capabilityHash = '__CAPABILITY_HASH__';
+const expiresAt = __EXPIRES_AT__;
+let used = false;
+const reply = (status: number, value: unknown) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff' } });
+
+Deno.serve(async (request: Request) => {
+  if (Date.now() >= expiresAt || used) return reply(410, { error: 'Operation closed' });
+  if (request.method !== 'POST') return reply(405, { error: 'Method not allowed' });
+  const capability = request.headers.get('X-Elo-Activation-Admin') ?? '';
+  if (!/^[a-f0-9]{64}$/.test(capability)) return reply(403, { error: 'Forbidden' });
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(capability)));
+  const actualHash = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+  let mismatch = 0;
+  for (let i = 0; i < capabilityHash.length; i++) mismatch |= capabilityHash.charCodeAt(i) ^ actualHash.charCodeAt(i);
+  if (mismatch !== 0) return reply(403, { error: 'Forbidden' });
+  // No input is accepted for the recipient, account id, redirect, or password.
+  if (new URL(request.url).search || (await request.text()).length) return reply(400, { error: 'No request parameters accepted' });
+  used = true;
+  try {
+    const url = Deno.env.get('SUPABASE_URL');
+    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (url !== expectedProject || !key) return reply(503, { error: 'Configuration mismatch' });
+    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: account, error: accountError } = await supabase.auth.admin.getUserById(expectedId);
+    if (accountError || account.user?.id !== expectedId || account.user.email?.toLowerCase() !== expectedEmail || !account.user.email_confirmed_at || account.user.is_anonymous) return reply(409, { error: 'Account verification failed' });
+    const { data, error } = await supabase.auth.admin.generateLink({ type: 'recovery', email: expectedEmail, options: { redirectTo: 'https://elo-validacao.onrender.com/account/password' } });
+    const code = data?.properties?.email_otp;
+    if (error || data?.user?.id !== expectedId || data.user.email?.toLowerCase() !== expectedEmail || typeof code !== 'string' || !/^\d{6,10}$/.test(code)) return reply(503, { error: 'Code generation failed' });
+    // Native generateLink does not send email. Never return service keys or action URLs.
+    return reply(200, { email: expectedEmail, code });
+  } catch {
+    return reply(503, { error: 'Operation failed' });
+  }
+});
