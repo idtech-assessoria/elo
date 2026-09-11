@@ -6,6 +6,7 @@ import { assertActiveSession } from '../server/session';
 import { AppError } from '../server/commands';
 import { balance, dayOffset } from '../app/domain';
 import type { Pool } from 'pg';
+import { checkReceiptWorkflow } from './receipt-postgres-check';
 import { checkInitialImport } from './import-check';
 
 const fixture = await postgresFixture();
@@ -79,8 +80,8 @@ try {
   assert.match(timestamp!.at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
   await assert.rejects(db.prepare('UPDATE loans SET due=? WHERE id=?').bind('2026-02-30', loanId).run(), /date|range/);
   await assert.rejects(execute({ kind: 'piece.save', piece: { name: 'Forbidden' } }, partner));
-  await execute({ kind: 'portal.acknowledge', loanId }, partner);
-  await execute({ kind: 'portal.return', loanId, reason: 'Return test request' }, partner);
+  await assert.rejects(execute({ kind: 'portal.acknowledge', loanId }, partner), /consulta/);
+  await assert.rejects(execute({ kind: 'portal.return', loanId, reason: 'Return test request' }, partner), /consulta/);
   assert.equal(snapshot.state.pieces[0].available, 2, 'A return request cannot increase inventory');
   await execute({ kind: 'loan.settle', loanId, productId: pieceId, quantity: 1, action: 'return' });
   await execute({ kind: 'loan.settle', loanId, productId: pieceId, quantity: 1, action: 'sale' });
@@ -91,10 +92,10 @@ try {
   assert.equal(balance(snapshot.state.receivables[0]), 10000);
   await assert.rejects(execute({ kind: 'payment.reverse', paymentId, reason: 'Duplicate reversal test' }));
   const otherLoanId = String((await execute({ ...command, merchantId: otherMerchantId, items: { [pieceId]: 1 } })).result.id);
-  await assert.rejects(execute({ kind: 'portal.acknowledge', loanId: otherLoanId }, partner), /não encontrado/);
+  await assert.rejects(execute({ kind: 'portal.acknowledge', loanId: otherLoanId }, partner), /consulta/);
   const portal = portalSnapshot(await repo.read(partner));
   assert.deepEqual(portal.loans.map(l => l.id), [loanId]);
-  assert.ok(portal.notices.every(n => n.merchantId === merchantId && n.audience === 'Lojista'));
+  for (const field of ['notices','receivables','payments']) assert.equal(field in portal, false);
   assert.equal('pieces' in portal, false);
   assert.equal('owner_id' in portal, false);
   assert.ok(portal.loans.every(l => l.events.every(e => !('actorId' in e))));
@@ -128,9 +129,11 @@ try {
       assert.deepEqual((await reader.query('SELECT revision FROM workspaces')).rows, first.rows);
     } finally { await reader.query('ROLLBACK'); reader.release(); }
   }
+  await checkReceiptWorkflow(repo, db, owner, partner, merchantId, otherMerchantId);
+  snapshot = await repo.read(owner);
   await execute({ kind: 'merchant.save', merchant: { ...snapshot.state.merchants.find(m => m.id === merchantId), portalEnabled: false } });
   await assert.rejects(repo.read(partner), /desabilitado/);
-  await assert.rejects(repo.execute(partner, crypto.randomUUID(), snapshot.revision, { kind: 'portal.read' }), /desabilitado/);
+  await assert.rejects(repo.execute(partner, crypto.randomUUID(), snapshot.revision, { kind: 'portal.read' }), /consulta/);
 
   const sessionId = crypto.randomUUID();
   await admin.query('INSERT INTO auth.sessions (id,user_id,not_after) VALUES ($1,$2,$3)', [sessionId, ownerId, new Date(Date.now() + 60000).toISOString()]);

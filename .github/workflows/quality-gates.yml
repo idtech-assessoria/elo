@@ -40,6 +40,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:domain
       - run: npm run test:auth
+      - run: npm run test:receipts
       - run: npm run test:legacy
       - run: npm run test:postgres
       - name: Verify runtime startup command against PostgreSQL

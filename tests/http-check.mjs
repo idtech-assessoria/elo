@@ -69,6 +69,11 @@ try {
     if (Date.now() > deadline || server.exitCode !== null) throw Error('Next.js did not start: ' + output);
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  const portalMutation = await fetch(origin + '/api/portal', {method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify({command:{kind:'portal.acknowledge',loanId:'EMP-0001'}})});
+  assert.equal(portalMutation.status,405);
+  assert.equal(portalMutation.headers.get('allow'),'GET');
+  assert.match((await portalMutation.json()).error,/consulta/);
+  assert.equal(calls.length,0,'Disabled portal writes must not invoke authentication or messaging providers');
   const page = await fetch(origin + '/login'); const loginHtml = await page.text();
   assert.match(loginHtml, /PEÇAS.*EMPRÉSTIMOS/);
   assert.match(loginHtml, /name="password"/);

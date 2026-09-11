@@ -4,6 +4,7 @@ import {D1,type Statement} from './sqlite-d1';
 import {readFileSync,readdirSync,mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {applyCommand} from '../server/commands';
 import {Repository,portalSnapshot} from '../server/repository';
 import {balance,loanCount,loanValue,merchantExposure,dayOffset} from '../app/domain';
 const folder=mkdtempSync(join(tmpdir(),'elo-db-check-'));const path=join(folder,'db.sqlite');
@@ -24,12 +25,14 @@ assert.equal(loanId,'EMP-0001');assert.equal(snapshot.state.pieces[0].available,
 const retry=await repo.execute(owner,operationId,originalRevision,loanCommand);assert.equal(retry.state.loans.length,1);assert.equal(retry.state.pieces[0].available,2);assert.equal(retry.revision,snapshot.revision);
 await assert.rejects(repo.execute(owner,operationId,snapshot.revision,{...loanCommand,notes:'Alterada'}),/outra operação/);
 await assert.rejects(execute({kind:'loan.create',merchantId,due:dayOffset(1),items:{[pieceId]:10},notes:''}),/estoque insuficiente/);
-await assert.rejects(execute({kind:'portal.acknowledge',loanId},owner),/não permite/);
+await assert.rejects(execute({kind:'portal.acknowledge',loanId},owner),/consulta/);
 await assert.rejects(execute({kind:'piece.save',piece:{name:'invasão'}},partner));
-await execute({kind:'portal.acknowledge',loanId},partner);assert.equal(snapshot.state.loans[0].acknowledged,true);assert.equal(snapshot.state.loans[0].acknowledgedBy,'Lojista');
-await execute({kind:'portal.return',loanId,reason:'Vou devolver uma tela amanhã.'},partner);assert.equal(snapshot.state.pieces[0].available,2);assert.equal(loanCount(snapshot.state.loans[0]),3);
-await execute({kind:'portal.extend',loanId,date:dayOffset(4),reason:'Preciso de mais prazo para concluir o reparo.'},partner);const request=snapshot.state.loans[0].requests![0];assert.equal(snapshot.state.loans[0].due,dayOffset(1));
-await execute({kind:'loan.extension',loanId,requestId:request.id,approve:true,reason:'Novo prazo combinado com o parceiro.'});assert.equal(snapshot.state.loans[0].due,dayOffset(4));
+for(const command of [{kind:'portal.acknowledge',loanId},{kind:'portal.return',loanId,reason:'Vou devolver uma tela amanhã.'},{kind:'portal.extend',loanId,date:dayOffset(4),reason:'Preciso de mais prazo.'},{kind:'portal.dispute',loanId,reason:'Conferência de teste'},{kind:'portal.read'}])await assert.rejects(execute(command,partner),/consulta/);
+assert.equal(snapshot.state.loans[0].acknowledged,false);assert.equal(snapshot.state.pieces[0].available,2);assert.equal(loanCount(snapshot.state.loans[0]),3);
+// Previously saved requests remain resolvable, even though the portal no longer creates them.
+const historical=structuredClone(snapshot.state);historical.loans[0].requests=[{id:'historical-request',date:dayOffset(4),reason:'Solicitação anterior à mudança',status:'pending',at:new Date().toISOString()}];
+const resolved=applyCommand(historical,{kind:'loan.extension',loanId,requestId:'historical-request',approve:true,reason:'Novo prazo combinado com o parceiro.'},owner);
+assert.equal(resolved.state.loans[0].due,dayOffset(4));
 await execute({kind:'loan.settle',loanId,productId:pieceId,quantity:1,action:'return'});assert.equal(snapshot.state.pieces[0].available,3);assert.equal(loanCount(snapshot.state.loans[0]),2);
 await execute({kind:'loan.settle',loanId,productId:pieceId,quantity:1,action:'quarantine'});assert.equal(snapshot.state.pieces[0].available,3);assert.equal(snapshot.state.pieces[0].quarantine,1);
 const exp=merchantExposure(snapshot.state,merchantId);await execute({kind:'loan.settle',loanId,productId:pieceId,quantity:1,action:'sale'});assert.equal(merchantExposure(snapshot.state,merchantId),exp);assert.equal(loanCount(snapshot.state.loans[0]),0);const receivableId=snapshot.state.receivables[0].id;
@@ -40,8 +43,8 @@ await execute({kind:'payment.reverse',paymentId,reason:'Registro feito por engan
 await assert.rejects(execute({kind:'payment.reverse',paymentId,reason:'Segundo estorno inválido'}),/já foi estornado/);
 await execute({kind:'stock.move',pieceId,action:'release',quantity:1,reason:'Peça testada e aprovada'});assert.equal(snapshot.state.pieces[0].available,4);assert.equal(snapshot.state.pieces[0].quarantine,0);
 const otherLoan=await execute({kind:'loan.create',merchantId:otherMerchantId,due:dayOffset(3),items:{[pieceId]:1},notes:'Outra loja'});const otherLoanId=String(otherLoan.result.id);
-await assert.rejects(execute({kind:'portal.acknowledge',loanId:otherLoanId},partner),/não encontrado/);
-const portal=portalSnapshot(await repo.read(partner));assert.equal(portal.loans.length,1);assert.equal(portal.loans[0].id,loanId);assert.ok(portal.notices.every(n=>n.merchantId===merchantId&&n.audience==='Lojista'));assert.equal('pieces' in portal,false);assert.equal('movements' in portal,false);assert.equal('ownerId' in portal,false);
+await assert.rejects(execute({kind:'portal.acknowledge',loanId:otherLoanId},partner),/consulta/);
+const portal=portalSnapshot(await repo.read(partner));assert.equal(portal.loans.length,1);assert.equal(portal.loans[0].id,loanId);assert.equal('notices' in portal,false);assert.equal('receivables' in portal,false);assert.equal('payments' in portal,false);assert.equal('pieces' in portal,false);assert.equal('movements' in portal,false);assert.equal('ownerId' in portal,false);
 await execute({kind:'stock.move',pieceId,action:'count',quantity:1,reason:'Contagem física da unidade disponível'});
 const revision=snapshot.revision;const raceCommand={kind:'loan.create',merchantId,due:dayOffset(2),items:{[pieceId]:1},notes:'Disputa pela última peça'};
 const race=await Promise.allSettled([repo.execute(owner,crypto.randomUUID(),revision,raceCommand),repo.execute(owner,crypto.randomUUID(),revision,raceCommand)]);

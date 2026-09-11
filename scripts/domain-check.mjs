@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { seedState, createLoan, settleItem, dayOffset, loanCount, loanValue, merchantExposure, remaining } from '../app/domain.ts';
+import { seedState, createLoan, settleItem, dayOffset, loanCount, loanValue, merchantExposure, remaining, loanStatus } from '../app/domain.ts';
 const base=seedState();
 const original=JSON.stringify(base);
 const result=createLoan(base,'m1',dayOffset(3),{p1:3,p2:2},'Teste de conferência');
 assert.equal(JSON.stringify(base),original,'Creating a loan must preserve previous state.');
 assert.equal(result.state.pieces.find(p=>p.id==='p1').available,9);
 assert.equal(loanCount(result.loan),5);
+assert.equal(loanStatus(result.loan),'Em andamento');
 assert.equal(result.state.notices.length,base.notices.length+2);
 assert.deepEqual(result.state.notices.slice(0,2).map(n=>n.audience),['Você','Lojista']);
 assert.equal(result.state.notices[0].body.includes('TEL-013-OLED'),true);

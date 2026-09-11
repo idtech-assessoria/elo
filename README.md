@@ -6,11 +6,12 @@ O código original do GPT Sites está preservado na `main`, commit `82e20fe45385
 
 ## Funcionalidades
 
-- Estoque, cadastro de peças, entrada, contagem, quarentena e baixa com motivo.
+- Cadastro de peças com todos os campos opcionais, nome/código automáticos, entrada, contagem, quarentena e baixa com motivo.
 - Lojistas, limite de exposição, bloqueio de retiradas e portal individual.
 - Empréstimos com vários itens, preços históricos, devoluções parciais e vendas.
 - Pagamentos parciais, estornos, comprovantes, exportação JSON e histórico.
-- Aceite pelo lojista, divergências, pedidos de prazo, avisos de devolução e extrato.
+- Portal do lojista somente para consultar as próprias retiradas, prazos e comprovantes.
+- Assinatura manuscrita coletada no aparelho da assistência, cópia preservada e PDF para WhatsApp. Pedidos e divergências antigos permanecem no histórico.
 - Avisos persistentes, fila Resend/Gmail e WhatsApp com revisão pelo usuário.
 
 ## Executar
@@ -27,9 +28,17 @@ O servidor verifica a identidade com `getUser(token)` e chama `elo_private.sessi
 
 `ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID` definem explicitamente a proprietária. O e-mail de destino solicitado é `idtech.assessoria@gmail.com`; a troca autorizada está registrada em `config/owner-migration.json`. O identificador do Sites não é um UUID Supabase; a conta do GitHub também não determina a proprietária. Importe a assistência original antes do primeiro acesso, conforme [MIGRACAO.md](MIGRACAO.md). Para uma instalação nova, a inicialização exige ambos os valores e a identidade verificada correspondente.
 
-O portal exige e-mail cadastrado e habilitado, vinculado ao UUID no primeiro acesso verificado. Desabilitar o portal ou trocar o e-mail remove o vínculo. Cada leitura/gravação confere novamente a autorização. As APIs retornam apenas os registros do próprio lojista.
+O portal exige e-mail cadastrado e habilitado, vinculado ao UUID no primeiro acesso verificado. Desabilitar o portal ou trocar o e-mail remove o vínculo. Cada leitura confere novamente a autorização. O portal não aceita gravações: POST retorna 405 e comandos de lojista são recusados pelo repositório e pelas regras de negócio. As APIs retornam apenas os registros do próprio lojista.
 
 As 14 tabelas têm RLS e bloqueiam acesso direto de `anon` e `authenticated`. O servidor usa conexão privada com o login `elo_app`, que herda somente o papel `elo_backend`. Pools são reutilizados, TLS verifica certificados e lotes usam uma única conexão e transação `REPEATABLE READ`. A revisão da assistência e o recibo idempotente protegem estoque, financeiro, histórico e fila contra disputas e repetições.
+
+## Comprovante e assinatura
+
+Ao salvar uma retirada, o comprovante abre com um espaço para o lojista assinar com o dedo ou mouse e informar seu nome. A assistência salva a assinatura; o servidor confere se o documento ainda é o mesmo e preserva dados, traços e horário no registro do empréstimo. Uma assinatura salva não pode ser sobrescrita. O portal permite ver e baixar a própria cópia. A assinatura é manuscrita coletada pela assistência, não uma identificação certificada do signatário.
+
+No celular compatível, **Compartilhar PDF / WhatsApp** abre a lista de aplicativos com o PDF anexado. No computador ou navegador sem compartilhamento de arquivos, use **Baixar PDF** e **Abrir conversa no WhatsApp**, depois anexe o arquivo. Abrir a conversa não envia nem anexa automaticamente. O usuário escolhe o destinatário e confirma o envio no WhatsApp. O PDF é gerado no aparelho, sem upload para outro serviço.
+
+O cadastro pode omitir o valor de referência. Esses empréstimos aceitam valor zero no banco; uma conversão em venda exige preço positivo informado pela assistência. O preço da venda não altera o comprovante de retirada já assinado. A migração `optional_loan_reference_value` muda somente essa restrição, mantendo as permissões e os limites de quantidade.
 
 ## Comunicação e limites
 
@@ -50,6 +59,7 @@ A fila avança nas operações e com o painel visível; vencimentos são verific
 | `npm run typecheck` | TypeScript |
 | `npm run test:domain` | Regras de negócio |
 | `npm run test:auth` | Identidade, sessão, redirecionamentos, CSRF, TLS e limites de requisição |
+| `npm run test:receipts` | PDF assinado, paginação, formulário opcional, captura de assinatura e compartilhamento simulado |
 | `npm run test:legacy` | Três suítes SQLite, Resend e Gmail simulados |
 | `npm run test:postgres` | SQL/adaptador e importação com troca de proprietária, em PGlite local ou PostgreSQL real com `TEST_DATABASE_URL` |
 | `npm run build` | Build Next.js de produção |

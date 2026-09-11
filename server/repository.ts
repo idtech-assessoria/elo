@@ -50,6 +50,7 @@ export class Repository{
   return {state:s,revision:w.revision,actor};
  }
  async execute(actor:Actor,id:string,revision:number,input:unknown):Promise<Snapshot&{result:Record<string,string|number|boolean>}>{
+  if(actor.role!=='owner')throw new AppError('O portal do lojista é somente para consulta.',403);
   const bytes=new TextEncoder().encode(j({actor:actor.id,command:input}));const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
   const lookup=async()=>this.db.prepare('SELECT fingerprint,result FROM commands WHERE id=? AND workspace_id=?').bind(id,WORKSPACE).first<{fingerprint:string;result:string}>();
   const cached=await lookup();if(cached){if(cached.fingerprint!==digest)throw new AppError('Este identificador já foi usado para outra operação.',409);return {...await this.read(actor),result:JSON.parse(cached.result)}}
@@ -82,7 +83,6 @@ export function portalSnapshot(snapshot:Snapshot){
  const {state,actor,revision}=snapshot;if(actor.role!=='merchant'||!actor.merchantId)throw new AppError('Acesso exclusivo do lojista.',403);
  const merchant=state.merchants.find(m=>m.id===actor.merchantId);if(!merchant?.portalEnabled)throw new AppError('O acesso deste lojista ao portal está desabilitado.',403);
  const loans=state.loans.filter(l=>l.merchantId===merchant.id).map(l=>({...l,events:l.events.map(e=>omit(e,['actorId']))}));
- const receivables=state.receivables.filter(r=>r.merchantId===merchant.id);const receivableIds=new Set(receivables.map(r=>r.id));
  const assistance=omit(state.settings||defaultSettings,['before','due','late','hour']);
- return {revision,actor:{name:actor.name,email:actor.email},merchant:{id:merchant.id,name:merchant.name,contact:merchant.contact},assistance,loans,receivables,payments:state.payments?.filter(p=>receivableIds.has(p.receivableId))||[],notices:state.notices.filter(n=>n.merchantId===merchant.id&&n.audience==='Lojista')};
+ return {revision,actor:{name:actor.name,email:actor.email},merchant:{id:merchant.id,name:merchant.name,contact:merchant.contact},assistance,loans};
 }
