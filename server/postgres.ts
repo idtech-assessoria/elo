@@ -62,7 +62,14 @@ export function poolConfig(connectionString: string): PoolConfig {
 }
 
 class PostgresStatement implements SqlStatement {
-  constructor(readonly database: PostgresDatabase, readonly sql: string, readonly values: unknown[] = []) {}
+  readonly database: PostgresDatabase;
+  readonly sql: string;
+  readonly values: unknown[];
+  constructor(database: PostgresDatabase, sql: string, values: unknown[] = []) {
+    this.database = database;
+    this.sql = sql;
+    this.values = values;
+  }
   bind(...values: unknown[]) { return new PostgresStatement(this.database, this.sql, values); }
   async query(client: Pool | PoolClient) {
     if (this.values.some(value => value === undefined)) throw new Error('Undefined SQL binding');
@@ -75,7 +82,8 @@ class PostgresStatement implements SqlStatement {
 }
 
 export class PostgresDatabase implements SqlDatabase {
-  constructor(readonly pool: Pool) {}
+  readonly pool: Pool;
+  constructor(pool: Pool) { this.pool = pool; }
   prepare(sql: string): SqlStatement { return new PostgresStatement(this, sql); }
   async batch(statements: SqlStatement[]): Promise<SqlResult[]> {
     if (!statements.length) return [];

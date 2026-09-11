@@ -1,6 +1,6 @@
 # Elo — Peças & Empréstimos
 
-Migração do Elo para **Next.js independente, Supabase Auth/PostgreSQL e Resend**, preservando a integração Gmail existente. Repositório privado: [idtech-assessoria/elo](https://github.com/idtech-assessoria/elo). Branch: `migration/github-supabase-resend`.
+Migração do Elo para **Next.js independente, Supabase Auth/PostgreSQL e Resend**, preservando a integração Gmail existente. Repositório: [idtech-assessoria/elo](https://github.com/idtech-assessoria/elo), tornado público pelo titular em 11/09/2026. Branch: `migration/github-supabase-resend`.
 
 O código original do GPT Sites está preservado na `main`, commit `82e20fe45385ec8f993aa18c9e8bf6b5f1258c55`. O aplicativo publicado no GPT Sites não é alterado por esta branch. EchoArena não faz parte deste repositório.
 
@@ -27,7 +27,7 @@ O login em `/login` envia link mágico pelo Supabase Auth com PKCE; abra-o no me
 
 O portal exige e-mail cadastrado e habilitado, vinculado ao UUID no primeiro acesso verificado. Desabilitar o portal ou trocar o e-mail remove o vínculo. Cada leitura/gravação confere novamente a autorização. As APIs retornam apenas os registros do próprio lojista.
 
-As 14 tabelas têm RLS e bloqueiam acesso direto de `anon` e `authenticated`. O servidor usa conexão privada com o papel `elo_backend`. Pools são reutilizados, TLS verifica certificados e lotes usam uma única conexão e transação `REPEATABLE READ`. A revisão da assistência e o recibo idempotente protegem estoque, financeiro, histórico e fila contra disputas e repetições.
+As 14 tabelas têm RLS e bloqueiam acesso direto de `anon` e `authenticated`. O servidor usa conexão privada com o login `elo_app`, que herda somente o papel `elo_backend`. Pools são reutilizados, TLS verifica certificados e lotes usam uma única conexão e transação `REPEATABLE READ`. A revisão da assistência e o recibo idempotente protegem estoque, financeiro, histórico e fila contra disputas e repetições.
 
 ## Comunicação e limites
 

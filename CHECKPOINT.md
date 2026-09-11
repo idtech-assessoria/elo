@@ -57,3 +57,11 @@
 - É necessário liberar `idtech-assessoria/elo` na conexão GitHub do próprio Render. A integração GitHub desta conversa acessa o repositório, mas isso não concede ao Render a mesma permissão. [Procedimento oficial](https://render.com/docs/git-provider).
 - O Security Advisor do Supabase foi consultado após a migração do login e retornou zero alertas. Nenhum usuário Auth, assistência ou e-mail real foi criado/enviado.
 - O código do servidor está no commit `4ae3e93df037f3667e1fdf83048092f1cca64e37`. O [Quality Gates dessa versão](https://github.com/idtech-assessoria/elo/actions/runs/34546117198) passou integralmente, incluindo operações sob `elo_app` no PostgreSQL 17 real, lint, TypeScript, auditoria, build e HTTP. A revisão seguinte apenas registra este bloqueio nos documentos.
+
+## Continuação — Render criado em 11/09/2026
+
+- O titular tornou o repositório público e liberou o acesso do aplicativo Render. A API GitHub confirmou `private=false`, `disabled=false` e a branch correta. O [CI do checkpoint anterior](https://github.com/idtech-assessoria/elo/actions/runs/34546338086) passou.
+- Criado `elo-validacao`, ID `srv-dahlmoqd0e5s73fu2s70`, no workspace já confirmado, Free, Virginia, Node.js 24, uma instância, sem publicação automática ou previews. URL atribuída: `https://elo-validacao.onrender.com`. [Painel](https://dashboard.render.com/web/srv-dahlmoqd0e5s73fu2s70).
+- As variáveis privadas usam os dois segredos existentes no Vault e a chave publishable habilitada do ELO. `DATABASE_URL` inicialmente usa o host direto IPv6 com login `elo_app`. O UUID da proprietária permanece ausente. Nenhuma chave foi regenerada ou publicada no GitHub.
+- Primeiro deploy `dep-dahlmpad0e5s73fu3240`: build Next.js/TypeScript bem-sucedido; inicialização falhou com `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` no Node 24.21.0 do Render. A falha foi reproduzida localmente, corrigida com propriedades explícitas nos construtores e coberta por uma nova etapa de CI que executa `check:runtime` contra PostgreSQL 17.
+- A importação nativa do adaptador no Node 24 passou após a correção, assim como PostgreSQL/PGlite, lint e TypeScript. A verificação do novo deploy e da conexão externa ao banco permanece pendente.

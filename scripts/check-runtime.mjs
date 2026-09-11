@@ -23,7 +23,7 @@ try {
   if (schema.tables !== 14 || !schema.rls) throw new Error('Elo migrations are incomplete');
   await pool.query('SELECT id FROM public.workspaces LIMIT 0');
   await pool.query('SELECT id,user_id,not_after FROM auth.sessions LIMIT 0');
-  console.log('Elo database ready: TLS connection, restricted elo_app role, 14 tables with RLS, session permissions verified.');
+  console.log('Elo database ready: connection, restricted elo_app role, 14 tables with RLS, session permissions verified.');
 } catch (error) {
   // Never print connection strings, passwords, or arbitrary provider messages.
   console.error('Elo database preflight failed:', String(error.code ?? 'CONFIGURATION_ERROR'));
