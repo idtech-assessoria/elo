@@ -49,3 +49,11 @@
 - O comando de inicialização agora verifica a conexão, o papel restrito, as 14 tabelas com RLS e permissões de sessão. Falhas bloqueiam o início do servidor; a verificação não cria dados nem solicita e-mails.
 - PostgreSQL local/PGlite, lint e TypeScript passaram após a alteração. O CI continua exigindo PostgreSQL 17 real; suas operações de domínio passam a usar `elo_app` por associação, conferindo a herança das permissões.
 - O destino segue com zero assistências e zero usuários Auth. Criação do serviço, conexão a partir do Render e URL pública ainda serão verificadas. A última versão anterior tem [Quality Gates aprovado](https://github.com/idtech-assessoria/elo/actions/runs/34542780539), commit `997360571388f765dc32426129191a2b1d6f7b9e`.
+
+### Bloqueio encontrado na tentativa de publicação
+
+- A chamada de criação no Render usou o workspace confirmado, plano `free`, Virginia, branch correta, deploy automático desabilitado e credenciais exclusivas. Retornou HTTP 400, `passed in repository URL is invalid or unfetchable`, para a URL privada válida `https://github.com/idtech-assessoria/elo`.
+- A consulta posterior ao workspace continuou sem serviços. Nenhum serviço, deploy ou endereço público foi criado; as variáveis não foram persistidas em um serviço Render. As credenciais permanecem recuperáveis no Vault do ELO.
+- É necessário liberar `idtech-assessoria/elo` na conexão GitHub do próprio Render. A integração GitHub desta conversa acessa o repositório, mas isso não concede ao Render a mesma permissão. [Procedimento oficial](https://render.com/docs/git-provider).
+- O Security Advisor do Supabase foi consultado após a migração do login e retornou zero alertas. Nenhum usuário Auth, assistência ou e-mail real foi criado/enviado.
+- O código do servidor está no commit `4ae3e93df037f3667e1fdf83048092f1cca64e37`. O [Quality Gates dessa versão](https://github.com/idtech-assessoria/elo/actions/runs/34546117198) passou integralmente, incluindo operações sob `elo_app` no PostgreSQL 17 real, lint, TypeScript, auditoria, build e HTTP. A revisão seguinte apenas registra este bloqueio nos documentos.

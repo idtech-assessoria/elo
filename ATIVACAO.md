@@ -50,4 +50,10 @@ Validar HTTPS, login, logout/revogação, assistência original e contato atuali
 
 ## Acesso observado nesta continuação
 
-Em 11/09/2026, as operações do Render passaram a responder. O usuário confirmou a publicação gratuita no workspace **My Workspace**, da conta `idtech.assessoria@gmail.com`, ID `tea-dahjohu1egvs738arhcg`. A primeira listagem de serviços estava vazia. A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Resend ainda precisa ser consultado na etapa de e-mail.
+Em 11/09/2026, as operações do Render passaram a responder. O usuário confirmou a publicação gratuita no workspace **My Workspace**, da conta `idtech.assessoria@gmail.com`, ID `tea-dahjohu1egvs738arhcg`. A tentativa de criação retornou HTTP 400: o repositório privado `https://github.com/idtech-assessoria/elo` estava inacessível ao Render. A listagem posterior confirmou que nenhum serviço foi criado. Não há URL pública dessa migração nem conexão a partir do Render validada.
+
+Para liberar esse bloqueio, a pessoa titular deve conectar GitHub em **Render > Account Settings > Account Security > Git Deployment Credentials > Add credential** e incluir `idtech-assessoria/elo` no acesso do aplicativo Render. Para instalação existente, [configurar as permissões do Render no GitHub](https://github.com/apps/render/installations/new). [Instruções oficiais](https://render.com/docs/git-provider). A autorização do workspace Free já foi concedida e não precisa ser solicitada novamente.
+
+Após a liberação, conferir se há algum serviço criado manualmente para evitar duplicação. Se o workspace continuar vazio, criar `elo-validacao` com as opções do Blueprint e os segredos existentes no Vault; não gerar novas chaves. Verificar o deploy e a conexão PostgreSQL antes de anunciar que está no ar. A API de criação não expõe `healthCheckPath`; caso usado o MCP, o caminho `/login` do Blueprint ainda precisa ser configurado pelo painel se necessário.
+
+A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Se a rede do Render exigir IPv4, obter o hostname real de **Connect > Session pooler**. Não desabilitar TLS ou comprar o adicional IPv4 para contornar essa pendência. Resend ainda precisa ser consultado na etapa de e-mail.
