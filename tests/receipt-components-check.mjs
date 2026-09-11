@@ -42,18 +42,76 @@ try {
   await act(async () => root.render(React.createElement(ReceiptDialog, props)));
   await ready();
   assert.equal(button('Salvar assinatura').disabled, true);
-  const svg = document.querySelector('.signature-pad svg');
-  svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 400 });
-  svg.setPointerCapture = () => {};
-  const pointer = (type, x, y) => svg.dispatchEvent(new window.PointerEvent(type, { pointerId: 1, button: 0, clientX: x, clientY: y, bubbles: true, cancelable: true }));
-  await act(async () => { pointer('pointerdown', 50, 250); pointer('pointermove', 150, 100); pointer('pointermove', 280, 270); pointer('pointerup', 280, 270); });
+  // JSDOM has no layout. Model the scrollable receipt so the dialog's own
+  // background scroll lock does not treat every gesture as an overscroll.
+  const receiptScroll = document.querySelector('.dialog-body');
+  receiptScroll.style.overflowY = 'auto';
+  Object.defineProperties(receiptScroll, { scrollHeight: { value: 1200 }, clientHeight: { value: 400 } });
+  receiptScroll.scrollTop = 200;
+  const pad = document.querySelector('.signature-pad');
+  pad.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 400 });
+  const captured = [];
+  pad.setPointerCapture = id => captured.push(id);
+  const pointer = (type, id, x, y, target = pad) => target.dispatchEvent(new window.PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: true, button: 0, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+  const touch = (type, target = pad) => {
+    const contact = { identifier: 1, target, clientX: 10, clientY: type === 'touchstart' ? 200 : 160 };
+    const event = new window.TouchEvent(type, { bubbles: true, cancelable: true, changedTouches: [contact], touches: type === 'touchend' ? [] : [contact] });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  // Every fresh touch must suppress panning, even after lifting the finger.
+  await act(async () => {
+    assert.equal(touch('touchstart'), true);
+    pointer('pointerdown', 1, 50, 250);
+    assert.equal(touch('touchmove'), true);
+    pointer('pointermove', 1, 150, 100);
+    pointer('pointermove', 1, 280, 270);
+    pointer('pointerup', 1, 280, 270);
+    assert.equal(touch('touchend'), true);
+  });
+  const firstInk = pad.querySelector('polyline');
+  await act(async () => {
+    assert.equal(touch('touchstart', firstInk), true, 'Restarting over existing ink must not scroll');
+    pointer('pointerdown', 2, 350, 200, firstInk);
+    pointer('pointerdown', 9, 900, 100); // A second finger cannot replace the active stroke.
+    pointer('pointermove', 9, 950, 250);
+    pointer('pointerup', 9, 950, 250);
+    pointer('pointercancel', 1, 280, 270); // A stale event cannot finish the new touch.
+    pointer('pointermove', 2, 430, 120);
+    pointer('pointerup', 2, 430, 120);
+    assert.equal(touch('touchend', firstInk), true);
+  });
+  await act(async () => {
+    assert.equal(touch('touchstart'), true);
+    pointer('pointerdown', 3, 500, 200);
+    pointer('pointermove', 3, 600, 240);
+    pointer('lostpointercapture', 3, 600, 240);
+    pointer('pointermove', 3, 650, 250);
+  });
+  await act(async () => {
+    assert.equal(touch('touchstart'), true, 'Capture interruption must allow a new stroke');
+    pointer('pointerdown', 4, 700, 200);
+    pointer('pointermove', 4, 800, 150);
+    pointer('pointercancel', 4, 800, 150);
+  });
+  await act(async () => {
+    pointer('pointerdown', 5, 820, 180);
+    pointer('pointermove', 5, 900, 210);
+    pointer('pointerup', 5, 900, 210);
+  });
+  assert.deepEqual(captured, [1, 2, 3, 4, 5]);
+  assert.equal(pad.querySelectorAll('polyline').length, 5);
   assert.equal(button('Salvar assinatura').disabled, false);
+  const visibleReceipt = receiptScroll.querySelector('.receipt-document');
+  touch('touchstart', visibleReceipt);
+  assert.equal(touch('touchmove', visibleReceipt), false, 'The document outside the pad stays scrollable');
   await act(async () => document.querySelector('.receipt-sign-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-  assert.deepEqual(signature.strokes, [[[50, 250], [150, 100], [280, 270]]]);
+  assert.deepEqual(signature.strokes, [[[50, 250], [150, 100], [280, 270]], [[350, 200], [430, 120]], [[500, 200], [600, 240]], [[700, 200], [800, 150]], [[820, 180], [900, 210]]]);
   assert.equal(signature.receiptFingerprint, createHash('sha256').update(JSON.stringify(receiptContent(loan, merchant, assistance))).digest('hex'));
   // A concurrently changed document must discard the old handwriting before saving.
   await act(async () => root.render(React.createElement(ReceiptDialog, { ...props, loan: { ...loan, notes: 'Changed by another operation' } })));
   assert.equal(document.querySelectorAll('.signature-pad polyline').length, 0);
+  assert.equal(touch('touchmove', pad), false, 'Unmount removes native touch listeners');
   assert.equal(button('Salvar assinatura').disabled, true);
   await ready();
   let shared;
@@ -82,5 +140,5 @@ try {
   assert.match(document.body.textContent, /Meus empréstimos/);
   assert.doesNotMatch(document.body.textContent, /Confirmar recebimento|Contestar|Solicitar prazo|Avisar devolução/);
   assert.ok(button('Ver comprovante assinado'));
-  console.log('OK: optional form submission, pointer signature, stale document reset, immutable signed view, prepared PDF native sharing/fallback and read-only portal. All interactions and sharing isolated/mocked.');
+  console.log('OK: optional form submission, multi-stroke touch signature, panning prevention, interruption/restart, stale document reset, immutable signed view, prepared PDF native sharing/fallback and read-only portal. All interactions and sharing isolated/mocked.');
 } finally { await act(async () => root.unmount()); dom.window.close(); }
