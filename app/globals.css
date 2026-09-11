@@ -78,4 +78,6 @@ body{background:#f6f7f9;color:#24362f}.content{color:#24362f}.page-heading h1{co
 .elo-login-form{display:grid;gap:12px;margin-top:28px}.elo-login-form label{font-weight:650;font-size:13px}
 .elo-login-form input{width:100%;border:1px solid #bacabd;border-radius:10px;padding:14px;background:#fff;color:#193e31;font-size:16px}
 .elo-login-form button{justify-content:center;min-height:48px}.elo-login-error{color:#a52e31!important}
+.elo-password-field{display:flex;align-items:center;gap:10px}.elo-password-field input{min-width:0}.elo-password-field button{flex-shrink:0;padding:0 4px;font-size:13px}
+.elo-login-help{margin-top:24px}.elo-login-help>a{font-size:14px;text-decoration:underline}.elo-login-help p{margin-top:8px}.elo-login-alternative{margin-top:22px;border-top:1px solid #d9e3d8;padding-top:18px}.elo-login-alternative summary,.elo-login-form summary{cursor:pointer;font-size:14px;font-weight:600}.elo-login-alternative>p{margin-top:12px}.elo-back-link{display:inline-block;margin-top:24px}.elo-login-form details label{display:block;margin:14px 0 8px}
 @media(max-width:500px){.elo-login-card{padding:28px}.elo-login h1{font-size:26px}}

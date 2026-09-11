@@ -6,6 +6,8 @@ import { safeReturnPath } from '../lib/auth-path';
 import { postgresSql, poolConfig } from '../server/postgres';
 import { appOrigin, supabaseConfig } from '../server/config';
 import { requestBody } from '../server/http';
+import { passwordLoginInput, passwordChangeInput } from '../lib/password-input';
+import { updateAccountPassword } from '../server/password';
 
 for (const input of ['https://evil.example', '//evil.example', '/\\evil.example', '/\n/evil.example', '/auth/callback', '/login', '/a/../auth/logout', '', undefined, ['/portal']]) assert.equal(safeReturnPath(input), '/', String(input));
 assert.equal(safeReturnPath('/portal?loan=EMP-0001#details'), '/portal?loan=EMP-0001#details');
@@ -94,3 +96,40 @@ for (const change of [{ exp: 1 }, { sub: crypto.randomUUID() }, { role: 'service
 token = tokenFor(claims); revoked = true; await assert.rejects(verifyIdentity(supabase, database), /encerrada/);
 const prior = verificationCalls; token = undefined; await assert.rejects(verifyIdentity(supabase, database), /Entre/); assert.equal(verificationCalls, prior);
 console.log('OK: safe redirects, trusted origin/CSRF, body limits, SQL bindings/TLS, verified Auth identity, forged metadata ignored, invalid/expired/revoked/unconfirmed/anonymous sessions rejected. Auth is mocked.');
+
+const fixturePassword = '  Local fixture 123!  ';
+const passwordInput = { password: fixturePassword, confirmation: fixturePassword };
+assert.equal(passwordLoginInput.parse({ email: ' a@example.com ', password: fixturePassword }).password, fixturePassword);
+assert.equal(passwordChangeInput.safeParse({ ...passwordInput, confirmation: 'different value' }).success, false);
+assert.equal(passwordChangeInput.safeParse({ password: 'short', confirmation: 'short' }).success, false);
+assert.equal(passwordChangeInput.safeParse({ password: '🔒'.repeat(20), confirmation: '🔒'.repeat(20) }).success, false);
+let passwordCalls = 0;
+let expectedCurrent: string | undefined = ' exact old password ';
+let passwordFailure: { code: string; status: number } | null = null;
+supabase.auth.updateUser = async attributes => {
+  passwordCalls++;
+  assert.deepEqual(attributes, { password: fixturePassword, ...(expectedCurrent ? { current_password: expectedCurrent } : {}) });
+  return { data: { user: null }, error: passwordFailure } as unknown as Awaited<ReturnType<SupabaseClient['auth']['updateUser']>>;
+};
+for (const badInput of [{ ...passwordInput, email: 'other@example.com' }, { ...passwordInput, userId: crypto.randomUUID() }]) {
+  await assert.rejects(updateAccountPassword(supabase, database, badInput));
+}
+assert.equal(passwordCalls, 0);
+await assert.rejects(updateAccountPassword(supabase, database, passwordInput), /Entre/);
+token = tokenFor(claims); revoked = true;
+await assert.rejects(updateAccountPassword(supabase, database, passwordInput), /encerrada/);
+revoked = false; confirmed = false;
+await assert.rejects(updateAccountPassword(supabase, database, passwordInput), /confirmado/);
+confirmed = true; anonymous = true;
+await assert.rejects(updateAccountPassword(supabase, database, passwordInput), /confirmado/);
+anonymous = false;
+assert.equal(passwordCalls, 0, 'Rejected identities must never reach updateUser');
+await updateAccountPassword(supabase, database, { ...passwordInput, currentPassword: ' exact old password ' });
+assert.equal(passwordCalls, 1);
+expectedCurrent = undefined;
+await updateAccountPassword(supabase, database, passwordInput);
+assert.equal(passwordCalls, 2, 'An authenticated email-link user can set a first password');
+expectedCurrent = ' exact old password ';
+passwordFailure = { code: 'reauthentication_needed', status: 400 };
+await assert.rejects(updateAccountPassword(supabase, database, { ...passwordInput, currentPassword: ' exact old password ' }), /Entre novamente/);
+console.log('OK: passwords preserved exactly, password strength/confirmation, arbitrary target rejected, current confirmed non-revoked session required, Supabase self-service password update and reauthentication errors. No real password changed.');
