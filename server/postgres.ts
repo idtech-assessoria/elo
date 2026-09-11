@@ -44,6 +44,19 @@ export function postgresSql(sql: string, values: number): string {
 export function poolConfig(connectionString: string): PoolConfig {
   const url = new URL(connectionString);
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('Invalid database protocol');
+  // Route the existing database secret through Supabase's session pooler without
+  // transmitting or rotating its password when only the network endpoint changes.
+  const poolerHost = process.env.DATABASE_POOLER_HOST?.trim();
+  const poolerUser = process.env.DATABASE_POOLER_USER?.trim();
+  if (poolerHost || poolerUser) {
+    if (!poolerHost || !/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(poolerHost) ||
+        !poolerUser || !/^[a-z_][a-z0-9_]*\.[a-z0-9]{20}$/.test(poolerUser)) {
+      throw new Error('Configure a valid Supabase session pooler host and user together');
+    }
+    url.hostname = poolerHost;
+    url.username = poolerUser;
+    url.port = '5432';
+  }
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   // URL SSL parameters must not override certificate verification.
   for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'ssl', 'uselibpqcompat']) url.searchParams.delete(key);

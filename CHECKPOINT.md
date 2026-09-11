@@ -1,6 +1,6 @@
 # Checkpoint — 11/09/2026
 
-Estado mais recente: serviço Render criado, correção de inicialização aprovada no CI e compilada no Render. O deploy permanece bloqueado por `ENETUNREACH` na conexão direta do Supabase. Falta obter o hostname real do **Session pooler** e atualizar a conexão do serviço existente; não criar outro servidor nem regenerar segredos.
+Estado mais recente: o titular forneceu o Session pooler do ELO, `aws-0-sa-east-1.pooler.supabase.com:5432`. Host e usuário públicos foram atualizados no Render. O código passa a reutilizar a senha já existente em `DATABASE_URL`; é necessário publicar e verificar essa alteração. Não criar outro servidor nem regenerar segredos.
 
 O titular descartou `idtech.com.br`, cadastrado no Resend por engano. Após a confirmação explícita do aviso de remoção, a exclusão foi concluída e a listagem do Resend retornou zero domínios. Essa pendência está encerrada. Não recriar esse cadastro ou retomar as instruções de DNS retiradas do projeto.
 
@@ -93,3 +93,10 @@ O titular descartou `idtech.com.br`, cadastrado no Resend por engano. Após a co
 - O usuário respondeu `confirmo` após o aviso explícito sobre a exclusão definitiva de `idtech.com.br` no Resend. A nova chamada de remoção retornou `Domain removed successfully`.
 - A listagem imediatamente posterior retornou `No domains found`. O cadastro foi excluído; não existe outra confirmação ou remoção pendente para esse domínio. Nenhum DNS externo, registro de domínio ou dado do aplicativo foi alterado.
 - A publicação permanece aguardando o hostname do **Session pooler** do Supabase. Essa informação ainda não foi fornecida e não está exposta no conector. O serviço Render, as credenciais e o código validado foram preservados, sem novo deploy ou envio de e-mail.
+
+## Session pooler fornecido pelo titular
+
+- Captura do painel ELO com `connectTab=direct&method=session`: host `aws-0-sa-east-1.pooler.supabase.com`, porta `5432`, banco `postgres`, usuário administrativo com o sufixo do projeto. O login da aplicação permanece `elo_app`, portanto usa `elo_app.jrfmakgafcybhinjkalc` no pooler.
+- A revisão automática rejeitou a primeira atualização de `DATABASE_URL` por envolver retransmissão da senha ao Render. Nenhuma alteração ocorreu nessa chamada. A alternativa transmite somente `DATABASE_POOLER_HOST` e `DATABASE_POOLER_USER`, campos públicos, e mantém a credencial já instalada no ambiente do serviço.
+- O Render aceitou a atualização dos dois campos públicos no serviço `srv-dahlmoqd0e5s73fu2s70`. O adaptador exige a configuração completa, limita o host ao domínio oficial do pooler, fixa porta `5432`, preserva senha/banco e exige TLS verificado. Os testes cobrem senha inalterada, ativação de TLS mesmo sobre uma URL local, campos incompletos, destino externo e usuário inválido.
+- Auth com provedores simulados, PostgreSQL/PGlite, lint e TypeScript passaram localmente após a alteração. O CI e o deploy dessa revisão ainda serão acompanhados. Nenhum e-mail real foi enviado ou registro operacional criado.

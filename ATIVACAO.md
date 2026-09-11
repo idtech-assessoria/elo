@@ -2,7 +2,7 @@
 
 Proprietária solicitada: **idtech.assessoria@gmail.com**. Repositório: **idtech-assessoria/elo**, branch **migration/github-supabase-resend**. Projeto Supabase: **ELO**, referência **jrfmakgafcybhinjkalc**.
 
-O código, o esquema PostgreSQL e o serviço Render já foram criados. O login privado `elo_app` e a chave de cifragem estão configurados no ambiente do servidor. A publicação está bloqueada pela rede: a conexão direta IPv6 do Supabase retornou `ENETUNREACH` no Render. O próximo passo é obter o hostname real de **Supabase > Connect > Session pooler**, atualizar somente `DATABASE_URL` no serviço existente e tentar o deploy novamente. Ainda faltam confirmar a conta Auth, importar a assistência original e configurar o domínio/remetente de e-mail.
+O código, o esquema PostgreSQL e o serviço Render já foram criados. O titular forneceu o Session pooler em uma captura do painel ELO: `aws-0-sa-east-1.pooler.supabase.com`, porta `5432`. O servidor agora tem as variáveis públicas `DATABASE_POOLER_HOST` e `DATABASE_POOLER_USER` configuradas; elas reutilizam a senha que já estava guardada em `DATABASE_URL`. A publicação da alteração e a conexão a partir do Render ainda precisam ser verificadas. Depois, faltam confirmar a conta Auth, importar a assistência original e configurar os e-mails.
 
 ## Hospedagem preparada
 
@@ -22,6 +22,8 @@ Referências: [Next.js no Render](https://render.com/docs/deploy-nextjs-app), [l
 | `SUPABASE_URL` | `https://jrfmakgafcybhinjkalc.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | Chave publishable habilitada do projeto ELO; nunca `service_role` |
 | `DATABASE_URL` | Conexão privada de um login exclusivo que herde `elo_backend` |
+| `DATABASE_POOLER_HOST` | `aws-0-sa-east-1.pooler.supabase.com`, confirmado na captura do titular |
+| `DATABASE_POOLER_USER` | `elo_app.jrfmakgafcybhinjkalc` |
 | `DATABASE_SSL_CA` | Certificado CA confiável, caso a conexão exija; nunca desabilitar a verificação TLS |
 | `ELO_OWNER_EMAIL` | `idtech.assessoria@gmail.com` |
 | `ELO_OWNER_USER_ID` | UUID real, apenas depois de confirmar o e-mail e importar a assistência |
@@ -31,7 +33,9 @@ As variáveis com `sync: false` no Blueprint precisam ser inseridas no servidor.
 
 A migração `20260911001722_elo_runtime_credentials` criou `elo_app` com `LOGIN INHERIT`, sem `SUPERUSER`, `CREATEDB`, `CREATEROLE` ou `BYPASSRLS`, limite de dez conexões e somente associação a `elo_backend`. A senha SCRAM e a chave de cifragem são geradas no servidor e preservadas no Vault, nos nomes `elo_app_database_password` e `elo_messaging_encryption_key`. O papel da aplicação não pode ler o Vault nem `auth.users`. Ambientes PostgreSQL sem Vault deixam o papel sem login e não geram credenciais. A migração recusa substituir segredos existentes.
 
-Transfira os valores somente para as variáveis privadas da hospedagem. Escolha em **Supabase > Connect** a conexão compatível com a rede do servidor: conexão direta para IPv6 ou **Session pooler** para IPv4. O hostname do pooler deve ser copiado do painel; não pode ser deduzido da região. No pooler, o usuário é `elo_app.jrfmakgafcybhinjkalc`; na conexão direta, `elo_app`. A conexão administrativa fica reservada às migrações e à importação. Referências: [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres), [Vault](https://supabase.com/docs/guides/database/vault).
+Os segredos já estão nas variáveis privadas da hospedagem. Para a troca de rede, manter `DATABASE_URL` e sua senha; configurar somente `DATABASE_POOLER_HOST` e `DATABASE_POOLER_USER`. O adaptador aplica esses dois valores, usa a porta de sessão `5432`, preserva a senha e o banco, exige ambos os campos e mantém a verificação TLS. Hosts externos ao domínio oficial do pooler são recusados. Sem essas variáveis opcionais, a conexão original é usada. Em migrações/importações administrativas fora do Render, deixar essas duas variáveis ausentes.
+
+O endereço do pooler foi obtido da captura do painel, sem tentativa de índices. No pooler, o usuário é `elo_app.jrfmakgafcybhinjkalc`; na conexão direta, `elo_app`. A conexão administrativa fica reservada às migrações e à importação. Referências: [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres), [Vault](https://supabase.com/docs/guides/database/vault).
 
 ## Supabase Auth e Resend
 
@@ -60,6 +64,6 @@ O segundo deploy, `dep-dahlq91594qs73fid4s0`, compilou essa correção com suces
 
 Usar o serviço existente nos próximos deploys; não criar duplicata nem gerar novas chaves. Verificar o deploy e a conexão PostgreSQL antes de anunciar que está no ar. A API de criação não expõe `healthCheckPath`; o caminho `/login` do Blueprint ainda precisa ser configurado pelo painel se necessário. O serviço criado usa a verificação TCP padrão.
 
-A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Solicitar somente o hostname de **Connect > Session pooler**, sem senha. Usar porta `5432`, banco `postgres`, usuário `elo_app.jrfmakgafcybhinjkalc` e a senha existente no Vault. Não desabilitar TLS ou comprar o adicional IPv4 para contornar essa pendência. A conexão final deve passar pela verificação de certificado e permissões antes de liberar o servidor.
+A integração Supabase não expôs o endereço do pooler; o titular forneceu a captura correspondente. A revisão automática recusou retransmitir a senha em uma atualização de `DATABASE_URL`. A alternativa aplicada transmite apenas os dois campos públicos do pooler e utiliza a senha previamente instalada no servidor, sem novo envio de segredo. A atualização desses campos no Render foi aceita. A conexão final ainda deve passar pela verificação de certificado e permissões antes de liberar o servidor.
 
 O titular confirmou a exclusão de `idtech.com.br` após receber o aviso exigido. O cadastro foi removido do Resend e a listagem posterior retornou zero domínios. Não há pendência de confirmação ou remoção desse cadastro. O domínio permanece descartado das instruções de ativação e nenhum DNS foi alterado. A última conferência da base mostrou zero conexões Resend/Gmail, zero contas Auth da proprietária e zero assistências.

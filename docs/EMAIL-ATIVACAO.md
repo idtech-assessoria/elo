@@ -2,7 +2,7 @@
 
 O titular informou em 11/09/2026 que cadastrou `idtech.com.br` por engano. Após a confirmação explícita, o cadastro foi excluído do Resend; a listagem posterior retornou zero domínios. Esse domínio está descartado para o Elo. Não configurar seus registros DNS, usar remetentes desse domínio ou presumir que o titular o controla. As instruções anteriores de DNS foram retiradas.
 
-O endereço do aplicativo já foi atribuído pelo Render: `https://elo-validacao.onrender.com`. Usar esse endereço não exige registrar um domínio próprio. A publicação está bloqueada pela conexão PostgreSQL e precisa do hostname real de **Supabase > Connect > Session pooler**.
+O endereço do aplicativo já foi atribuído pelo Render: `https://elo-validacao.onrender.com`. Usar esse endereço não exige registrar um domínio próprio. O titular forneceu o Session pooler do Supabase; host e usuário públicos estão configurados no Render. A publicação dessa conexão ainda precisa ser verificada antes da ativação do acesso.
 
 ## Configuração de acesso preparada
 

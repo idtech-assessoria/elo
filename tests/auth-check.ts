@@ -16,6 +16,33 @@ assert.throws(() => postgresSql('SELECT $$?', 0), /Unterminated/);
 assert.equal(poolConfig('postgres://user:pass@localhost/elo_test').ssl, false);
 assert.deepEqual(poolConfig('postgres://user:pass@db.example/elo?sslmode=disable').ssl, { rejectUnauthorized: true });
 assert.ok(!poolConfig('postgres://user:pass@db.example/elo?sslmode=no-verify').connectionString!.includes('sslmode'));
+const oldPoolerHost = process.env.DATABASE_POOLER_HOST;
+const oldPoolerUser = process.env.DATABASE_POOLER_USER;
+try {
+  process.env.DATABASE_POOLER_HOST = 'aws-0-sa-east-1.pooler.supabase.com';
+  delete process.env.DATABASE_POOLER_USER;
+  assert.throws(() => poolConfig('postgres://elo_app:unchanged%40fixture@localhost/elo_test'), /host and user together/);
+  process.env.DATABASE_POOLER_USER = 'elo_app.' + 'a'.repeat(20);
+  const routed = poolConfig('postgres://elo_app:unchanged%40fixture@localhost:6543/elo_test?sslmode=disable');
+  const routedUrl = new URL(routed.connectionString!);
+  assert.equal(routedUrl.hostname, 'aws-0-sa-east-1.pooler.supabase.com');
+  assert.equal(routedUrl.username, 'elo_app.' + 'a'.repeat(20));
+  assert.equal(routedUrl.port, '5432');
+  assert.equal(routedUrl.password, 'unchanged%40fixture');
+  assert.equal(routedUrl.pathname, '/elo_test');
+  assert.deepEqual(routed.ssl, { rejectUnauthorized: true });
+  assert.equal(routedUrl.searchParams.has('sslmode'), false);
+  process.env.DATABASE_POOLER_HOST = 'attacker.example';
+  assert.throws(() => poolConfig('postgres://elo_app:fixture@localhost/elo_test'), /host and user together/);
+  process.env.DATABASE_POOLER_HOST = 'aws-0-sa-east-1.pooler.supabase.com';
+  process.env.DATABASE_POOLER_USER = 'elo_app@attacker.example';
+  assert.throws(() => poolConfig('postgres://elo_app:fixture@localhost/elo_test'), /host and user together/);
+} finally {
+  if (oldPoolerHost === undefined) delete process.env.DATABASE_POOLER_HOST;
+  else process.env.DATABASE_POOLER_HOST = oldPoolerHost;
+  if (oldPoolerUser === undefined) delete process.env.DATABASE_POOLER_USER;
+  else process.env.DATABASE_POOLER_USER = oldPoolerUser;
+}
 assert.equal(appOrigin(), 'https://elo.example');
 process.env.APP_URL = 'https://elo.example/path'; assert.throws(appOrigin, /HTTPS origin/);
 process.env.APP_URL = 'https://elo.example';
