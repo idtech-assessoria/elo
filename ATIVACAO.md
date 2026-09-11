@@ -2,13 +2,13 @@
 
 Proprietária solicitada: **idtech.assessoria@gmail.com**. Repositório: **idtech-assessoria/elo**, branch **migration/github-supabase-resend**. Projeto Supabase: **ELO**, referência **jrfmakgafcybhinjkalc**.
 
-O código e o esquema PostgreSQL já estão nos destinos. Ainda faltam o servidor, suas credenciais privadas, a confirmação da conta Auth, a importação original e o domínio/remetente de e-mail. Esta preparação não significa que o aplicativo está publicado ou pronto para uso operacional.
+O código e o esquema PostgreSQL já estão nos destinos. O login privado `elo_app` e a chave de cifragem foram criados no Supabase em 11/09/2026. Ainda faltam concluir e verificar a publicação do servidor, confirmar a conta Auth, importar a assistência original e configurar o domínio/remetente de e-mail. Esta preparação não significa que o aplicativo esteja pronto para uso operacional.
 
 ## Hospedagem preparada
 
-`render.yaml` define um único Web Service Node.js 24, `elo-validacao`, no plano `free`, região Virginia. Usa a branch de migração, instala pelo lockfile, compila Next.js e executa `npm start` na porta fornecida pelo Render. Publicação automática e previews estão desabilitados. Não cria PostgreSQL, disco ou cron no Render.
+`render.yaml` define um único Web Service Node.js 24, `elo-validacao`, no plano `free`, região Virginia. Usa a branch de migração, instala pelo lockfile, compila Next.js e executa uma verificação de banco antes de `npm start`, na porta fornecida pelo Render. Publicação automática e previews estão desabilitados. Não cria PostgreSQL, disco ou cron no Render.
 
-O endereço será o HTTPS atribuído pelo Render. O comando de inicialização define `APP_URL` com `RENDER_EXTERNAL_URL` quando não houver domínio próprio configurado. Não se presume que um subdomínio específico esteja disponível. O `/login` verifica que o servidor responde; esse health check não comprova conexão com banco, SMTP ou login completo.
+O endereço será o HTTPS atribuído pelo Render. O comando de inicialização define `APP_URL` com `RENDER_EXTERNAL_URL` quando não houver domínio próprio configurado. `npm run check:runtime` exige conexão com o banco, o papel restrito `elo_app`, as 14 tabelas com RLS e leitura das colunas de sessão autorizadas. A verificação é somente de leitura e bloqueia a inicialização quando falha. O `/login` verifica que o servidor responde; não comprova SMTP ou login completo.
 
 O plano gratuito é destinado à validação: pode hibernar, reiniciar e ser suspenso por cotas. O próprio Render não o recomenda para produção. Antes de criar o serviço, conferir o workspace, cobrança de excedentes e limites de gastos. Um plano de produção ou domínio pago depende de escolha e autorização de custo; nada foi contratado.
 
@@ -29,7 +29,9 @@ Referências: [Next.js no Render](https://render.com/docs/deploy-nextjs-app), [l
 
 As variáveis com `sync: false` no Blueprint precisam ser inseridas no servidor. Não coloque senhas, API keys privadas ou chave de cifragem no GitHub, no backup ou em logs. O gerador de segredo padrão do Render produz Base64 e não deve ser usado diretamente para a chave hexadecimal exigida pelo Elo. Gere a chave uma única vez e mantenha cópia segura; não gere outra a cada deploy.
 
-A conexão da aplicação não deve usar o login administrativo `postgres`. A administração cria um login exclusivo com `LOGIN INHERIT`, sem `SUPERUSER`, `CREATEDB`, `CREATEROLE` ou `BYPASSRLS`, e concede somente a associação a `elo_backend`. Guarde a senha diretamente no ambiente da hospedagem. Escolha em **Supabase > Connect** a conexão compatível com a rede do servidor; use pooler quando necessário. A conexão administrativa fica reservada às migrações e à importação.
+A migração `20260911001722_elo_runtime_credentials` criou `elo_app` com `LOGIN INHERIT`, sem `SUPERUSER`, `CREATEDB`, `CREATEROLE` ou `BYPASSRLS`, limite de dez conexões e somente associação a `elo_backend`. A senha SCRAM e a chave de cifragem são geradas no servidor e preservadas no Vault, nos nomes `elo_app_database_password` e `elo_messaging_encryption_key`. O papel da aplicação não pode ler o Vault nem `auth.users`. Ambientes PostgreSQL sem Vault deixam o papel sem login e não geram credenciais. A migração recusa substituir segredos existentes.
+
+Transfira os valores somente para as variáveis privadas da hospedagem. Escolha em **Supabase > Connect** a conexão compatível com a rede do servidor: conexão direta para IPv6 ou **Session pooler** para IPv4. O hostname do pooler deve ser copiado do painel; não pode ser deduzido da região. No pooler, o usuário é `elo_app.jrfmakgafcybhinjkalc`; na conexão direta, `elo_app`. A conexão administrativa fica reservada às migrações e à importação. Referências: [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres), [Vault](https://supabase.com/docs/guides/database/vault).
 
 ## Supabase Auth e Resend
 
@@ -48,4 +50,4 @@ Validar HTTPS, login, logout/revogação, assistência original e contato atuali
 
 ## Acesso observado nesta continuação
 
-O usuário conectou Resend e Render, e ambos passaram a aparecer instalados. Suas operações ainda não estavam expostas ao executor ao concluir esta preparação; nenhum domínio ou serviço dessas contas foi presumido como acessível. Não é necessário reinstalar as integrações por causa desse registro. A integração Supabase acessa banco e projeto, mas não expôs administração de usuários ou das configurações Auth/SMTP. Nenhum segredo foi obtido por caminhos alternativos.
+Em 11/09/2026, as operações do Render passaram a responder. O usuário confirmou a publicação gratuita no workspace **My Workspace**, da conta `idtech.assessoria@gmail.com`, ID `tea-dahjohu1egvs738arhcg`. A primeira listagem de serviços estava vazia. A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Resend ainda precisa ser consultado na etapa de e-mail.

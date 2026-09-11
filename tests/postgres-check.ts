@@ -27,7 +27,8 @@ try {
   const client = await admin.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SET LOCAL ROLE elo_backend');
+    await client.query('SET LOCAL ROLE elo_app');
+    await client.query('SELECT id FROM public.workspaces');
     await client.query('SELECT id,user_id,not_after FROM auth.sessions');
     await assert.rejects(client.query('SELECT private_fixture FROM auth.sessions'), /permission denied/);
   } finally { await client.query('ROLLBACK'); client.release(); }

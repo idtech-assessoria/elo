@@ -12,7 +12,7 @@ services:
     branch: migration/github-supabase-resend
     autoDeployTrigger: "off"
     buildCommand: npm ci --include=dev && npm run build
-    startCommand: APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" npm start
+    startCommand: npm run check:runtime && APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" npm start
     healthCheckPath: /login
     envVars:
       - key: NODE_VERSION

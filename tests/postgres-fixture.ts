@@ -28,9 +28,9 @@ export async function postgresFixture() {
     const existing = await admin.query("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname IN ('public','auth')");
     assert.equal(existing.rows[0].n, 0, 'Test database must be empty; no automatic deletion');
     await admin.query(authFixture + migration);
-    const pool = new Pool({ ...poolConfig(connectionString), options: '-c role=elo_backend' });
+    const pool = new Pool({ ...poolConfig(connectionString), options: '-c role=elo_app' });
     const db = new PostgresDatabase(pool);
-    assert.equal((await pool.query('SELECT current_user AS name')).rows[0].name, 'elo_backend');
+    assert.equal((await pool.query('SELECT current_user AS name')).rows[0].name, 'elo_app');
     return { db, admin, real: true, close: async () => { await pool.end(); await admin.end(); } };
   }
 

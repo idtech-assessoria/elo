@@ -9,6 +9,7 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
+    "check:runtime": "node --experimental-strip-types scripts/check-runtime.mjs",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test:domain": "node --experimental-strip-types scripts/domain-check.mjs",

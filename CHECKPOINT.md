@@ -1,4 +1,4 @@
-# Checkpoint — 10/09/2026
+# Checkpoint — 11/09/2026
 
 ## Origem comprovada
 
@@ -40,3 +40,12 @@
 - Resend e Render foram conectados pelo usuário e passaram a aparecer instalados. As operações desses dois plugins ainda não constavam nas ferramentas disponíveis desta execução; domínios e serviços não foram consultados e nenhuma credencial foi inventada. O Supabase conectado continua sem operações administrativas de Auth/SMTP.
 - Uma consulta à Cloudflare foi bloqueada pela revisão automática porque a conexão disponível estava identificada com outra conta, sem vínculo comprovado com o Elo. Não houve nova tentativa ou alteração nessa conta; a alternativa preparada usa Render.
 - A reconferência do ELO confirmou 14 tabelas públicas com RLS, nenhuma assistência importada e nenhum usuário Auth para `idtech.assessoria@gmail.com`. Não houve envio real, publicação externa da aplicação ou contratação.
+
+## Continuação — servidor autorizado em 11/09/2026
+
+- Render agora responde. O usuário confirmou o workspace `tea-dahjohu1egvs738arhcg` da conta informada e a criação de `elo-validacao`, Node.js 24, Free, Virginia, na branch de migração. Não foi autorizado plano pago.
+- A migração `20260911001722_elo_runtime_credentials` foi aplicada ao ELO. Criou `elo_app` com associação a `elo_backend`, sem privilégios administrativos ou bypass de RLS. O login não lê `auth.users`, a tabela inteira de sessões ou o Vault. Lê somente as colunas de sessão já autorizadas.
+- A senha aleatória e a chave estável de cifragem foram geradas dentro do PostgreSQL e guardadas no Vault. Valores não estão no Git, em migrações ou neste documento. Nenhuma senha administrativa foi reutilizada.
+- O comando de inicialização agora verifica a conexão, o papel restrito, as 14 tabelas com RLS e permissões de sessão. Falhas bloqueiam o início do servidor; a verificação não cria dados nem solicita e-mails.
+- PostgreSQL local/PGlite, lint e TypeScript passaram após a alteração. O CI continua exigindo PostgreSQL 17 real; suas operações de domínio passam a usar `elo_app` por associação, conferindo a herança das permissões.
+- O destino segue com zero assistências e zero usuários Auth. Criação do serviço, conexão a partir do Render e URL pública ainda serão verificadas. A última versão anterior tem [Quality Gates aprovado](https://github.com/idtech-assessoria/elo/actions/runs/34542780539), commit `997360571388f765dc32426129191a2b1d6f7b9e`.
