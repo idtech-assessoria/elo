@@ -1,5 +1,14 @@
 # Checkpoint — 11/09/2026
 
+## Assinatura com o dedo em vários traços — publicado às 12:27 UTC
+
+- O quadro HTML captura o toque e mantém `touch-action: none` e listeners nativos não passivos durante toda a assinatura, inclusive entre levantar e recolocar o dedo. O SVG é apenas a camada de desenho. A rolagem fora do quadro continua disponível.
+- Um segundo dedo não substitui o traço ativo. Eventos de outro ponteiro não encerram a captura atual; cancelamento e perda de captura preservam os traços e permitem recomeçar. A assinatura continua sendo finalizada pelo botão **Salvar assinatura**, no mesmo formato de dados/PDF.
+- O teste de regressão falhou antes da correção e passou depois. Cobre cinco traços separados, reinício sobre traços existentes, segundo dedo, eventos antigos, cancelamento/perda de captura, preservação exata dos pontos ao salvar, descarte quando o documento muda e remoção dos listeners ao fechar. O teste modela a área rolável do diálogo; não equivale a teste de gesto nativo em um iPhone físico.
+- Lint sem erros/avisos, TypeScript e testes de comprovantes passaram localmente. O [Quality Gates 34598677538](https://github.com/idtech-assessoria/elo/actions/runs/34598677538) passou integralmente para o commit `a51376cc75180588deca9d1ba23a4d2988ab4c50`, incluindo PostgreSQL 17 real, build, HTTP, Auth, domínio e PDF/componentes.
+- Deploy `dep-dahv6e9594qs738nntfg` desse mesmo commit ficou **live às 12:27:29 UTC de 11/09/2026**. O log das 12:27:17 UTC confirmou conexão, papel restrito, 14 tabelas com RLS e permissões de sessão. A página pública `/login` foi aberta no navegador e exibiu e-mail/senha depois da inicialização. Nenhum formulário real foi submetido.
+- Apenas interface e testes foram alterados. Não houve migração, mudança de autenticação, criação/alteração de registros operacionais nem envio de mensagens. Serviço existente `elo-validacao`, autoDeploy desligado. Para carregar o novo código em uma aba já aberta, atualizar a página e reabrir o comprovante.
+
 ## Cadastro opcional, portal de consulta e comprovante assinado — publicado às 06:14 UTC
 
 - Todos os campos da peça são opcionais no formulário e no servidor. Nome e SKU são preenchidos quando omitidos; estoque/custo/valor começam em zero. Identificações duplicadas e números inválidos continuam bloqueados.
