@@ -7,9 +7,13 @@ import { resolve } from 'node:path';
 
 const owner = 'owner@example.com';
 const fixturePassword = '  Local fixture password 123!  ';
+const fixtureCode = '12345678';
 const calls = [];
 let logoutFailure = false;
 let passwordStatus = 200;
+let recoveryStatus = 200;
+let recoveryUsed = false;
+let recoveryEmail = owner;
 let userConfirmed = true;
 let userAnonymous = false;
 const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + Buffer.from(JSON.stringify({ sub: '11111111-1111-4111-8111-111111111111', exp: Math.floor(Date.now() / 1000) + 3600, role: 'authenticated', session_id: '22222222-2222-4222-8222-222222222222' })).toString('base64url') + '.fixture';
@@ -18,6 +22,16 @@ const mock = createServer(async (request, response) => {
   calls.push({ path: request.url, body: body ? JSON.parse(body) : null });
   response.setHeader('Content-Type', 'application/json');
   if (request.url.startsWith('/auth/v1/otp')) response.end('{}');
+  else if (request.url.startsWith('/auth/v1/verify')) {
+    const input = JSON.parse(body);
+    if (recoveryStatus !== 200 || recoveryUsed || input.email !== owner || input.token !== fixtureCode || input.type !== 'recovery') {
+      response.statusCode = recoveryStatus === 200 ? 403 : recoveryStatus;
+      response.end(JSON.stringify({ message: 'invalid or expired code', code: recoveryStatus === 429 ? 'over_request_rate_limit' : 'otp_expired' }));
+      return;
+    }
+    recoveryUsed = true;
+    response.end(JSON.stringify({ access_token: token, refresh_token: 'mock-refresh-token', token_type: 'bearer', expires_in: 3600, user: { id: '11111111-1111-4111-8111-111111111111', email: recoveryEmail, email_confirmed_at: userConfirmed ? '2026-01-01T00:00:00Z' : null, is_anonymous: userAnonymous, aud: 'authenticated' } }));
+  }
   else if (request.url.startsWith('/auth/v1/token')) {
     if (request.url.includes('grant_type=password')) {
       const input = JSON.parse(body);
@@ -60,7 +74,15 @@ try {
   assert.match(loginHtml, /name="password"/);
   assert.match(loginHtml, /autoComplete="current-password"/);
   assert.match(loginHtml, /action="\/auth\/password\/login" method="post"/);
+  assert.match(loginHtml, /href="\/password-setup"/);
   assert.match(page.headers.get('cache-control'), /no-store/);
+  const activationPage = await fetch(origin + '/password-setup');
+  const activationHtml = await activationPage.text();
+  assert.equal(activationPage.status, 200);
+  assert.match(activationHtml, /Definir minha senha/);
+  assert.match(activationHtml, /autoComplete="one-time-code"/);
+  assert.match(activationHtml, /action="\/auth\/password\/recovery" method="post"/);
+  assert.match(activationPage.headers.get('cache-control'), /no-store/);
   const protectedPage = await fetch(origin + '/portal', { redirect: 'manual' });
   assert.equal(protectedPage.status, 307); assert.match(protectedPage.headers.get('location'), /^\/login\?next=/);
   const send = (route, requestOrigin, body) => fetch(origin + route, { method: 'POST', redirect: 'manual', headers: { origin: requestOrigin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -75,7 +97,34 @@ try {
   const protectedPassword = await fetch(origin + '/account/password', { redirect: 'manual' });
   assert.equal(protectedPassword.status, 307);
   assert.equal(protectedPassword.headers.get('location'), '/login?next=%2Faccount%2Fpassword');
+  assert.equal((await send('/auth/password/recovery', 'https://evil.example', { email: owner, code: fixtureCode })).status, 403);
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: 'abc' })).status, 400);
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode, userId: 'another-user' })).status, 400);
+  assert.equal((await fetch(origin + '/auth/password/recovery')).status, 405);
   assert.equal(calls.length, 0);
+  for (const input of [{ email: owner, code: '99999999' }, { email: 'unknown@example.com', code: fixtureCode }]) {
+    const invalidCode = await send('/auth/password/recovery', origin, input);
+    assert.equal(invalidCode.status, 401);
+    assert.deepEqual(await invalidCode.json(), { error: 'Código inválido, expirado ou já utilizado.' });
+  }
+  recoveryStatus = 429;
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 429);
+  recoveryStatus = 503;
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 503);
+  recoveryStatus = 200; userConfirmed = false;
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 401);
+  recoveryUsed = false; userConfirmed = true; userAnonymous = true;
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 401);
+  recoveryUsed = false; userAnonymous = false; recoveryEmail = 'different@example.com';
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 401);
+  recoveryUsed = false; recoveryEmail = owner;
+  const activation = await send('/auth/password/recovery', origin, { email: owner.toUpperCase(), code: fixtureCode });
+  assert.equal(activation.status, 200);
+  assert.deepEqual(await activation.json(), { ok: true, next: '/account/password' });
+  assert.ok(activation.headers.getSetCookie().some(cookie => /auth-token=/.test(cookie) && /HttpOnly/i.test(cookie) && /Secure/i.test(cookie) && /SameSite=lax/i.test(cookie)));
+  assert.match(activation.headers.get('cache-control'), /no-store/);
+  assert.equal((await send('/auth/password/recovery', origin, { email: owner, code: fixtureCode })).status, 401, 'A consumed recovery code must be refused');
+  assert.equal(calls.filter(c => c.path.startsWith('/auth/v1/otp')).length, 0, 'Activation must not request email');
   const incorrect = await send('/auth/password/login', origin, { email: owner, password: 'incorrect' });
   assert.equal(incorrect.status, 401);
   const unknown = await send('/auth/password/login', origin, { email: 'unknown@example.com', password: 'incorrect' });
@@ -137,6 +186,7 @@ try {
   expiredSession.expires_at = 1;
   const expiredCookie = cookieName + '=base64-' + Buffer.from(JSON.stringify(expiredSession)).toString('base64url');
   assert.equal((await fetch(origin + '/login', { headers: { cookie: expiredCookie } })).status, 200);
+  assert.equal((await fetch(origin + '/password-setup', { headers: { cookie: expiredCookie } })).status, 200);
   assert.equal(calls.length, authCalls, 'Public login must not refresh an old session');
   const revisitLogout = await fetch(origin + '/auth/logout', { redirect: 'manual', headers: { cookie: sessionCookie } });
   assert.equal(revisitLogout.status, 303);
@@ -168,7 +218,8 @@ try {
   assert.ok(callbackAgain.headers.getSetCookie().some(cookie => /auth-token=/.test(cookie) && !/Max-Age=0/i.test(cookie)));
   const invalid = await fetch(origin + '/auth/callback?next=https://evil.example', { redirect: 'manual' });
   assert.equal(invalid.status, 303); assert.equal(invalid.headers.get('location'), origin + '/login?error=link');
-  console.log('OK: production Next.js HTTP routes, password login without OTP/email, invalid credentials, confirmed identities, protected password changes, owner return, CSRF, PKCE, secure cookies, logout/re-entry and recoverable provider failure. Auth HTTP is local and simulated; no email sent.');
+  assert.ok(!output.includes(fixturePassword) && !output.includes(fixtureCode), 'Credentials must not appear in server output');
+  console.log('OK: production Next.js HTTP routes, password login without email, one-time recovery code and rejection/replay handling, confirmed identities, protected password changes, owner return, CSRF, PKCE, secure cookies, logout/re-entry and recoverable provider failure. Auth HTTP is local and simulated; no email sent.');
 } finally {
   server.kill('SIGTERM'); await once(server, 'exit');
   await new Promise(resolve => mock.close(resolve));

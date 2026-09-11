@@ -7,7 +7,7 @@ export async function proxy(request: NextRequest) {
   response.headers.set('Cache-Control', 'private, no-store');
   // Entry and recovery must work even with stale cookies or an Auth outage.
   // Auth route handlers perform their own CSRF, PKCE and session operations.
-  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname.startsWith('/auth/')) return response;
+  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/password-setup' || request.nextUrl.pathname.startsWith('/auth/')) return response;
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) return response;
   const { url, key } = supabaseConfig();
   const supabase = createServerClient(url, key, {

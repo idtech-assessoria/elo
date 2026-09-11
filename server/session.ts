@@ -2,7 +2,7 @@ import { AppError } from './commands';
 import type { SqlDatabase } from './database';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Call only with the exact token already accepted by Supabase Auth getUser. */
+/** Only inspect a token returned by Supabase Auth or already accepted by its getUser. */
 export function verifiedSessionId(accessToken: string, verifiedUserId: string, now = Date.now()): string {
   try {
     const parts = accessToken.split('.');

@@ -6,7 +6,11 @@ O Elo está publicado em `https://elo-validacao.onrender.com`. A proprietária r
 
 ## Referência da configuração de acesso
 
-Para entrar novamente após sair, usar [Entrar no Elo](https://elo-validacao.onrender.com/login). O formulário solicita um novo link por e-mail; a mensagem anterior não é uma senha permanente e seu link não pode ser reutilizado. Abrir o link mais recente no mesmo navegador em que foi solicitado. O reenvio é manual, com intervalo inicial de um minuto; o limite do SMTP do projeto também se aplica. Uma falha na saída deve retornar ao formulário com aviso, sem afirmar que o servidor confirmou o encerramento.
+Para entrar novamente após sair, usar [Entrar no Elo](https://elo-validacao.onrender.com/login) com e-mail e senha. A verificação usa `signInWithPassword` do Supabase Auth e não solicita e-mail. Uma falha na saída retorna ao formulário com aviso, sem afirmar que o servidor confirmou o encerramento.
+
+Se ainda houver uma sessão aberta, usar **Minha senha de acesso** para escolher a primeira senha. Se não houver sessão nem entrega de e-mail, a página [Definir minha senha](https://elo-validacao.onrender.com/password-setup) aceita um código de recuperação nativo emitido pelo administrador autorizado para a conta já confirmada. Depois de validá-lo, o titular escolhe a senha no Elo; nenhuma senha deve ser enviada pelo chat. O código não deve ser salvo neste documento, no GitHub, em logs ou na URL. A presença de `encrypted_password` no Auth não comprova uma senha conhecida: a inscrição inicial por link pode gerar uma senha temporária aleatória.
+
+A alternativa opcional por link continua usando PKCE: abrir a mensagem mais recente no mesmo navegador em que foi solicitada. Reenvio é manual, com intervalo inicial de um minuto e sujeito ao SMTP do projeto. [Login por senha](https://supabase.com/docs/guides/auth/passwords) e [geração administrativa de códigos](https://supabase.com/docs/reference/javascript/auth-admin-generatelink).
 
 Manter os seguintes valores em [Supabase Auth > URL Configuration](https://supabase.com/dashboard/project/jrfmakgafcybhinjkalc/auth/url-configuration):
 
