@@ -6,6 +6,8 @@ O Elo está publicado em `https://elo-validacao.onrender.com`. A proprietária r
 
 ## Referência da configuração de acesso
 
+Para entrar novamente após sair, usar [Entrar no Elo](https://elo-validacao.onrender.com/login). O formulário solicita um novo link por e-mail; a mensagem anterior não é uma senha permanente e seu link não pode ser reutilizado. Abrir o link mais recente no mesmo navegador em que foi solicitado. O reenvio é manual, com intervalo inicial de um minuto; o limite do SMTP do projeto também se aplica. Uma falha na saída deve retornar ao formulário com aviso, sem afirmar que o servidor confirmou o encerramento.
+
 Manter os seguintes valores em [Supabase Auth > URL Configuration](https://supabase.com/dashboard/project/jrfmakgafcybhinjkalc/auth/url-configuration):
 
 | Campo | Valor |
