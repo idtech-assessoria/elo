@@ -2,11 +2,11 @@
 
 O titular informou em 11/09/2026 que cadastrou `idtech.com.br` por engano. Após a confirmação explícita, o cadastro foi excluído do Resend; a listagem posterior retornou zero domínios. Esse domínio está descartado para o Elo. Não configurar seus registros DNS, usar remetentes desse domínio ou presumir que o titular o controla. As instruções anteriores de DNS foram retiradas.
 
-O Render confirmou o serviço publicado em `https://elo-validacao.onrender.com`, no deploy `dep-dahmrvnqj5pc739m2hf0`, após validar a conexão e as permissões PostgreSQL. Usar esse endereço não exige registrar um domínio próprio. A abertura externa de `/login` ainda precisa ser conferida no navegador do titular, pois as ferramentas desta sessão não conseguiram acessá-la. O login e a importação da assistência continuam pendentes.
+O Elo está publicado em `https://elo-validacao.onrender.com`. A proprietária recebeu e abriu o e-mail de confirmação; sua conta real foi confirmada pelo Supabase em 11/09/2026 às 03:11:15 UTC. A captura enviada mostra a página após o retorno do login. A assistência original foi restaurada e vinculada à conta confirmada, e o UUID foi configurado no Render depois da importação. O painel administrativo fica na raiz `/`; a leitura desse painel após a correção ainda precisa ser confirmada pelo titular.
 
-## Configuração de acesso preparada
+## Referência da configuração de acesso
 
-Salvar os seguintes valores em [Supabase Auth > URL Configuration](https://supabase.com/dashboard/project/jrfmakgafcybhinjkalc/auth/url-configuration):
+Manter os seguintes valores em [Supabase Auth > URL Configuration](https://supabase.com/dashboard/project/jrfmakgafcybhinjkalc/auth/url-configuration):
 
 | Campo | Valor |
 |---|---|
@@ -14,16 +14,16 @@ Salvar os seguintes valores em [Supabase Auth > URL Configuration](https://supab
 | Redirect URL permitida | `https://elo-validacao.onrender.com/auth/callback` |
 | E-mail da proprietária | `idtech.assessoria@gmail.com` |
 
-Esses valores são uma configuração preparada, ainda não aplicada por esta sessão. O conector Supabase disponível não administra configurações Auth/SMTP. Manter confirmação de e-mail ativa e usuários anônimos desabilitados. Não atribuir confirmação de e-mail por SQL ou substituir o UUID real por um identificador inventado.
+O retorno do login ao Elo funcionou no fluxo utilizado pela proprietária. Os valores completos do painel não foram inspecionados pela integração, que não administra configurações Auth/SMTP. Manter confirmação de e-mail ativa e usuários anônimos desabilitados. A titularidade foi confirmada pelo fluxo real de e-mail, sem confirmação por SQL ou UUID inventado.
 
 ## Validação inicial sem domínio de envio próprio
 
 O SMTP padrão do Supabase permite testar o login com os e-mails que fazem parte da equipe do projeto. Conferir se `idtech.assessoria@gmail.com` é um desses membros e se o projeto usa o SMTP padrão antes de escolher esse caminho. O limite documentado em 11/09/2026 é de dois envios por hora; o serviço não é destinado à operação em produção e não libera acesso por e-mail para lojistas externos à equipe. [Documentação Supabase](https://supabase.com/docs/guides/auth/auth-smtp).
 
-Nenhum e-mail de validação foi solicitado nesta sessão. Quando o envio real estiver autorizado, a proprietária deve abrir o link no mesmo navegador. Depois de obter o UUID da conta confirmada, importar a assistência original e só então configurar `ELO_OWNER_USER_ID`, conforme `MIGRACAO.md`.
+A proprietária solicitou o link por conta própria e informou que o recebeu e confirmou. O assistente não solicitou outro envio. A conta foi conferida no Supabase, a assistência original foi importada e `ELO_OWNER_USER_ID` foi instalado após a restauração. Essas etapas estão concluídas; não repetir a importação ou gerar nova identidade.
 
 ## Envios operacionais pelo Resend
 
 Para enviar a lojistas pelo Resend, é necessário um domínio de envio que o titular controle e consiga verificar. O remetente de testes em `resend.dev` permite somente destinatário correspondente ao próprio e-mail da conta Resend e não atende à operação com lojistas. Não adicionar domínios de terceiros nem comprar domínio ou plano sem autorização de custo. [Limitação do Resend](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
 
-A configuração SMTP do Supabase Auth e a central de avisos do Elo são separadas. Ambas continuam pendentes; nenhuma API key de envio ou credencial SMTP foi criada neste trabalho. A base continua sem conexões Resend/Gmail e sem assistência importada.
+A configuração SMTP do Supabase Auth e a central de avisos do Elo são separadas. O recebimento do link pela proprietária funcionou, mas isso não valida o envio para lojistas. Nenhuma API key de envio ou credencial SMTP foi criada pelo assistente. A assistência está restaurada, mas os canais Resend/Gmail e os testes de avisos reais permanecem pendentes.
