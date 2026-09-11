@@ -2,6 +2,8 @@
 
 Estado mais recente: serviço Render criado, correção de inicialização aprovada no CI e compilada no Render. O deploy permanece bloqueado por `ENETUNREACH` na conexão direta do Supabase. Falta obter o hostname real do **Session pooler** e atualizar a conexão do serviço existente; não criar outro servidor nem regenerar segredos.
 
+O titular descartou `idtech.com.br`, cadastrado no Resend por engano, e solicitou sua exclusão. A remoção foi bloqueada pela revisão automática, que exige confirmação após aviso explícito de irreversibilidade e interrupção de envios/recebimentos. O cadastro ainda existe; não repetir a exclusão sem essa confirmação. As instruções de uso desse domínio foram retiradas do projeto.
+
 ## Origem comprovada
 
 - Backup: `elo-backup-completo-2026-09-10.zip`, SHA-256 `6f14d01974aeefb6b40e6cd22cb82f0bf84f7c3fa3428789eb6dd59eacc0574c`.
@@ -77,3 +79,11 @@ Estado mais recente: serviço Render criado, correção de inicialização aprov
 - A URL `https://elo-validacao.onrender.com` foi atribuída pelo Render, mas ainda não foi validada servindo a aplicação: nenhum deploy ficou ativo. O login e a restauração original continuam pendentes.
 - Reconferência do Supabase: zero usuários Auth para a proprietária, zero assistências, `elo_app` com login habilitado. Nenhum dado fictício ou e-mail real foi criado/enviado.
 - Resend agora está acessível: o domínio existente `idtech.com.br` está com verificação `failed`; três registros DNS exigidos também falharam. Consulta e valores registrados em `docs/RESEND-DNS.md`. O provedor DNS do titular ainda precisa ser identificado antes de qualquer alteração. Não houve modificação DNS/SMTP.
+
+## Domínio descartado pelo titular
+
+- O pedido posterior esclareceu que `idtech.com.br` foi adicionado por engano. A tentativa de remover o cadastro Resend `09c1425d-9ebe-42ad-9aef-ed5c9f6a12b8` foi rejeitada pela revisão automática: o usuário ainda não havia confirmado após receber o aviso explícito de que a remoção é irreversível e interrompe envios/recebimentos desse domínio. Não houve segunda tentativa ou caminho alternativo.
+- A orientação anterior `docs/RESEND-DNS.md` foi removida e substituída por `docs/EMAIL-ATIVACAO.md`. Não configurar o DNS desse domínio nem usar seus remetentes. Nenhuma alteração ocorreu na zona DNS.
+- O Supabase ELO permanece `ACTIVE_HEALTHY`; o conector retorna somente o host direto e não fornece o Session pooler. Não há arquivo local com esse endereço. A publicação continua aguardando o hostname real, sem senha.
+- Consulta de produção: zero assistências, zero conexões Resend, zero conexões Gmail e zero contas Auth para `idtech.assessoria@gmail.com`.
+- A configuração do acesso está preparada com a URL Render e o callback exato. O SMTP padrão do Supabase pode atender somente a validação inicial de e-mails de membros da equipe, dependendo da configuração atual; não foi presumido configurado ou testado com envio real. E-mails de lojistas pelo Resend continuam exigindo domínio próprio verificado. Nenhum plano ou domínio pago foi contratado.
