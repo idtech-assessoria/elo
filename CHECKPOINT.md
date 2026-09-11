@@ -1,6 +1,6 @@
 # Checkpoint — 11/09/2026
 
-Estado mais recente: o titular forneceu o Session pooler do ELO, `aws-0-sa-east-1.pooler.supabase.com:5432`. Host e usuário públicos foram atualizados no Render. O código passa a reutilizar a senha já existente em `DATABASE_URL`; é necessário publicar e verificar essa alteração. Não criar outro servidor nem regenerar segredos.
+Estado mais recente: o pooler e os certificados oficiais estão configurados no Render. A conexão ultrapassou rede/TLS; a inicialização detectou a falta de `USAGE` no schema Auth gerenciado. A correção usa uma função privada que retorna somente a validade da sessão; migração e publicação estão em validação. Não criar outro servidor nem regenerar segredos.
 
 O titular descartou `idtech.com.br`, cadastrado no Resend por engano. Após a confirmação explícita do aviso de remoção, a exclusão foi concluída e a listagem do Resend retornou zero domínios. Essa pendência está encerrada. Não recriar esse cadastro ou retomar as instruções de DNS retiradas do projeto.
 
@@ -100,3 +100,11 @@ O titular descartou `idtech.com.br`, cadastrado no Resend por engano. Após a co
 - A revisão automática rejeitou a primeira atualização de `DATABASE_URL` por envolver retransmissão da senha ao Render. Nenhuma alteração ocorreu nessa chamada. A alternativa transmite somente `DATABASE_POOLER_HOST` e `DATABASE_POOLER_USER`, campos públicos, e mantém a credencial já instalada no ambiente do serviço.
 - O Render aceitou a atualização dos dois campos públicos no serviço `srv-dahlmoqd0e5s73fu2s70`. O adaptador exige a configuração completa, limita o host ao domínio oficial do pooler, fixa porta `5432`, preserva senha/banco e exige TLS verificado. Os testes cobrem senha inalterada, ativação de TLS mesmo sobre uma URL local, campos incompletos, destino externo e usuário inválido.
 - Auth com provedores simulados, PostgreSQL/PGlite, lint e TypeScript passaram localmente após a alteração. O CI e o deploy dessa revisão ainda serão acompanhados. Nenhum e-mail real foi enviado ou registro operacional criado.
+
+## Pooler, certificados e consulta privada de sessão
+
+- O commit `3a2b501c33558a2d3ab531f076db58d7bc1be186` passou em todos os gates do [CI PostgreSQL 17](https://github.com/idtech-assessoria/elo/actions/runs/34555351023). O deploy `dep-dahmjnid0e5s7381k18g` compilou, mas retornou `SELF_SIGNED_CERT_IN_CHAIN`.
+- Os certificados oficiais de produção 2021/2025 foram verificados e instalados como `DATABASE_SSL_CA`, mantendo a verificação TLS. A origem e os fingerprints estão em `docs/DATABASE-TLS.md`. Essa atualização gerou o deploy `dep-dahmm52d0e5s7381t28g`, que avançou até o PostgreSQL e retornou `42501`.
+- A consulta de privilégios confirmou `public_usage=true`, grants nas três colunas de sessão, mas `auth_usage=false`. O schema Auth pertence a `supabase_admin`; `postgres` tem USAGE sem opção de delegação. O GRANT antigo não basta nesse ambiente gerenciado.
+- A migração privada cria `elo_private.session_active(uuid,uuid)` com SQL fixo, `SECURITY DEFINER`, `search_path` vazio, retorno booleano e EXECUTE apenas para `elo_backend`. Remove o acesso direto às três colunas de `auth.sessions`. Não altera o schema Auth, proprietários gerenciados, RLS nem a identidade da aplicação.
+- A inicialização e o verificador de sessão passam a chamar essa função. Os testes reproduzem a falta de USAGE em Auth, bloqueiam acesso por clientes, validam sessão de outro usuário, expiração, revogação e prazo ilimitado. Auth simulado, PostgreSQL/PGlite, lint e TypeScript passaram localmente. CI, aplicação da migração e novo deploy ainda pendentes.

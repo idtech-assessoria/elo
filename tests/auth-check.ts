@@ -79,8 +79,8 @@ const supabase = { auth: {
   },
 } } as unknown as Pick<SupabaseClient, 'auth'>;
 const database = { prepare(sql: string) {
-  databaseCalls++; assert.ok(sql.includes('auth.sessions') && sql.includes('not_after'));
-  return { bind(id: string, uid: string) { assert.equal(id, sessionId); assert.equal(uid, userId); return { first: async () => revoked ? null : { id: sessionId } }; } };
+  databaseCalls++; assert.ok(sql.includes('elo_private.session_active'));
+  return { bind(id: string, uid: string) { assert.equal(id, sessionId); assert.equal(uid, userId); return { first: async () => ({ active: !revoked }) }; } };
 } } as unknown as SqlDatabase;
 const verified = await verifyIdentity(supabase, database);
 assert.equal(verified.userId, userId); assert.equal(verified.email, 'verified@example.com'); assert.equal('role' in verified, false);

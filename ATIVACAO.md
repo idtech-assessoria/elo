@@ -2,13 +2,13 @@
 
 Proprietária solicitada: **idtech.assessoria@gmail.com**. Repositório: **idtech-assessoria/elo**, branch **migration/github-supabase-resend**. Projeto Supabase: **ELO**, referência **jrfmakgafcybhinjkalc**.
 
-O código, o esquema PostgreSQL e o serviço Render já foram criados. O titular forneceu o Session pooler em uma captura do painel ELO: `aws-0-sa-east-1.pooler.supabase.com`, porta `5432`. O servidor agora tem as variáveis públicas `DATABASE_POOLER_HOST` e `DATABASE_POOLER_USER` configuradas; elas reutilizam a senha que já estava guardada em `DATABASE_URL`. A publicação da alteração e a conexão a partir do Render ainda precisam ser verificadas. Depois, faltam confirmar a conta Auth, importar a assistência original e configurar os e-mails.
+O código, o esquema PostgreSQL e o serviço Render já foram criados. O Session pooler fornecido pelo titular e os certificados oficiais estão configurados no servidor. A conexão passou pela rede e pelo TLS, mas o deploy detectou que o papel do aplicativo não pode usar diretamente o schema Auth gerenciado. A função privada de validação de sessão resolve essa dependência; sua migração e publicação estão em validação. Depois, faltam confirmar a conta Auth, importar a assistência original e configurar os e-mails.
 
 ## Hospedagem preparada
 
 `render.yaml` define um único Web Service Node.js 24, `elo-validacao`, no plano `free`, região Virginia. Usa a branch de migração, instala pelo lockfile, compila Next.js e executa uma verificação de banco antes de `npm start`, na porta fornecida pelo Render. Publicação automática e previews estão desabilitados. Não cria PostgreSQL, disco ou cron no Render.
 
-O Render atribuiu [https://elo-validacao.onrender.com](https://elo-validacao.onrender.com) ao serviço `srv-dahlmoqd0e5s73fu2s70`, em 11/09/2026. O endereço reservado não significa que a inicialização foi concluída. O comando de inicialização define `APP_URL` com `RENDER_EXTERNAL_URL` quando não houver domínio próprio configurado. `npm run check:runtime` exige conexão com o banco, o papel restrito `elo_app`, as 14 tabelas com RLS e leitura das colunas de sessão autorizadas. A verificação é somente de leitura e bloqueia a inicialização quando falha. O `/login` verifica que o servidor responde; não comprova SMTP ou login completo.
+O Render atribuiu [https://elo-validacao.onrender.com](https://elo-validacao.onrender.com) ao serviço `srv-dahlmoqd0e5s73fu2s70`, em 11/09/2026. O endereço reservado não significa que a inicialização foi concluída. O comando de inicialização define `APP_URL` com `RENDER_EXTERNAL_URL` quando não houver domínio próprio configurado. `npm run check:runtime` exige conexão com o banco, o papel restrito `elo_app`, as 14 tabelas com RLS e execução da função privada de sessão. A verificação é somente de leitura e bloqueia a inicialização quando falha. O `/login` verifica que o servidor responde; não comprova SMTP ou login completo.
 
 O plano gratuito é destinado à validação: pode hibernar, reiniciar e ser suspenso por cotas. O próprio Render não o recomenda para produção. O titular confirmou o workspace e o plano Free; o serviço foi criado sem contratar plano pago, banco ou disco adicionais. Um plano de produção ou domínio pago depende de escolha e autorização de custo.
 
@@ -24,7 +24,7 @@ Referências: [Next.js no Render](https://render.com/docs/deploy-nextjs-app), [l
 | `DATABASE_URL` | Conexão privada de um login exclusivo que herde `elo_backend` |
 | `DATABASE_POOLER_HOST` | `aws-0-sa-east-1.pooler.supabase.com`, confirmado na captura do titular |
 | `DATABASE_POOLER_USER` | `elo_app.jrfmakgafcybhinjkalc` |
-| `DATABASE_SSL_CA` | Certificado CA confiável, caso a conexão exija; nunca desabilitar a verificação TLS |
+| `DATABASE_SSL_CA` | Certificados públicos oficiais Supabase 2021/2025, já instalados; origem e fingerprints em [docs/DATABASE-TLS.md](docs/DATABASE-TLS.md) |
 | `ELO_OWNER_EMAIL` | `idtech.assessoria@gmail.com` |
 | `ELO_OWNER_USER_ID` | UUID real, apenas depois de confirmar o e-mail e importar a assistência |
 | `MESSAGING_ENCRYPTION_KEY` | 32 bytes aleatórios codificados como **64 caracteres hexadecimais**, guardados no gerenciador de segredos |

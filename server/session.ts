@@ -15,6 +15,6 @@ export function verifiedSessionId(accessToken: string, verifiedUserId: string, n
 
 export async function assertActiveSession(db: SqlDatabase, userId: string, sessionId: string): Promise<void> {
   if (!uuid.test(userId) || !uuid.test(sessionId)) throw new AppError('Sessão inválida.', 401);
-  const session = await db.prepare('SELECT id FROM auth.sessions WHERE id=? AND user_id=? AND (not_after IS NULL OR not_after>CURRENT_TIMESTAMP)').bind(sessionId, userId).first();
-  if (!session) throw new AppError('Sua sessão foi encerrada. Entre novamente.', 401);
+  const session = await db.prepare('SELECT elo_private.session_active(?::uuid,?::uuid) AS active').bind(sessionId, userId).first<{ active: boolean }>();
+  if (session?.active !== true) throw new AppError('Sua sessão foi encerrada. Entre novamente.', 401);
 }

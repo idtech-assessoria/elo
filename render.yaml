@@ -31,6 +31,8 @@ services:
         value: aws-0-sa-east-1.pooler.supabase.com
       - key: DATABASE_POOLER_USER
         value: elo_app.jrfmakgafcybhinjkalc
+      - key: DATABASE_SSL_CA
+        sync: false
       - key: MESSAGING_ENCRYPTION_KEY
         sync: false
 # Add ELO_OWNER_USER_ID only after Auth confirmation and the original backup import.

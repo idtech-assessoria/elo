@@ -21,7 +21,7 @@ As rotas de banco usam Node.js. Não há dependência de D1, Cloudflare ou do ru
 
 ## Acesso e integridade
 
-O login em `/login` envia link mágico pelo Supabase Auth com PKCE; abra-o no mesmo navegador. O servidor verifica a identidade com `getUser(token)` e consulta `auth.sessions` para conferir expiração e revogação. Metadados editáveis não concedem permissões. Redirecionamentos aceitam apenas caminhos internos, escritas conferem a origem `APP_URL` e respostas autenticadas não podem ser armazenadas em cache.
+O login em `/login` envia link mágico pelo Supabase Auth com PKCE; abra-o no mesmo navegador. O servidor verifica a identidade com `getUser(token)` e chama `elo_private.session_active` para conferir vínculo, expiração e revogação. Essa função privada devolve somente um booleano; o login do servidor não precisa acessar diretamente o schema Auth. Metadados editáveis não concedem permissões. Redirecionamentos aceitam apenas caminhos internos, escritas conferem a origem `APP_URL` e respostas autenticadas não podem ser armazenadas em cache.
 
 `ELO_OWNER_EMAIL` e `ELO_OWNER_USER_ID` definem explicitamente a proprietária. O e-mail de destino solicitado é `idtech.assessoria@gmail.com`; a troca autorizada está registrada em `config/owner-migration.json`. O identificador do Sites não é um UUID Supabase; a conta do GitHub também não determina a proprietária. Importe a assistência original antes do primeiro acesso, conforme [MIGRACAO.md](MIGRACAO.md). Para uma instalação nova, a inicialização exige ambos os valores e a identidade verificada correspondente.
 

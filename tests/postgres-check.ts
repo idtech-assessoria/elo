@@ -17,7 +17,15 @@ try {
   for (const role of ['anon', 'authenticated']) {
     const grant = await admin.query("SELECT has_function_privilege($1,'public.rls_auto_enable()','EXECUTE') AS allowed", [role]);
     assert.equal(grant.rows[0].allowed, false, 'The administrative event trigger must not be callable by API roles');
+    const sessionGrant = await admin.query("SELECT has_function_privilege($1,'elo_private.session_active(uuid,uuid)','EXECUTE') AS allowed", [role]);
+    assert.equal(sessionGrant.rows[0].allowed, false, 'Browser roles cannot query session validity');
+    const schemaGrant = await admin.query("SELECT has_schema_privilege($1,'elo_private','USAGE') AS allowed", [role]);
+    assert.equal(schemaGrant.rows[0].allowed, false);
   }
+  // Reproduce the managed Supabase boundary: custom runtime roles cannot use auth.
+  await admin.query('REVOKE USAGE ON SCHEMA auth FROM elo_backend');
+  const authGrant = await admin.query("SELECT has_schema_privilege('elo_app','auth','USAGE') AS allowed");
+  assert.equal(authGrant.rows[0].allowed, false);
   for (const role of ['anon', 'authenticated']) for (const table of tables.rows) {
     for (const permission of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
       const grant = await admin.query('SELECT has_table_privilege($1,$2,$3) AS allowed', [role, 'public.' + table.tablename, permission]);
@@ -29,8 +37,9 @@ try {
     await client.query('BEGIN');
     await client.query('SET LOCAL ROLE elo_app');
     await client.query('SELECT id FROM public.workspaces');
-    await client.query('SELECT id,user_id,not_after FROM auth.sessions');
-    await assert.rejects(client.query('SELECT private_fixture FROM auth.sessions'), /permission denied/);
+    const sessionCheck = await client.query('SELECT elo_private.session_active(NULL::uuid,NULL::uuid) AS active');
+    assert.equal(sessionCheck.rows[0].active, false);
+    await assert.rejects(client.query('SELECT id,user_id,not_after FROM auth.sessions'), /permission denied/);
   } finally { await client.query('ROLLBACK'); client.release(); }
 
   await checkInitialImport(admin as unknown as Pool, db);
@@ -125,6 +134,8 @@ try {
 
   const sessionId = crypto.randomUUID();
   await admin.query('INSERT INTO auth.sessions (id,user_id,not_after) VALUES ($1,$2,$3)', [sessionId, ownerId, new Date(Date.now() + 60000).toISOString()]);
+  await assertActiveSession(db, ownerId, sessionId);
+  await admin.query('UPDATE auth.sessions SET not_after=NULL WHERE id=$1', [sessionId]);
   await assertActiveSession(db, ownerId, sessionId);
   await assert.rejects(assertActiveSession(db, strangerId, sessionId), /encerrada/);
   await admin.query('UPDATE auth.sessions SET not_after=$1 WHERE id=$2', ['2000-01-01T00:00:00Z', sessionId]);

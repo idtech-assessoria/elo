@@ -22,7 +22,8 @@ try {
   `);
   if (schema.tables !== 14 || !schema.rls) throw new Error('Elo migrations are incomplete');
   await pool.query('SELECT id FROM public.workspaces LIMIT 0');
-  await pool.query('SELECT id,user_id,not_after FROM auth.sessions LIMIT 0');
+  const { rows: [sessionCheck] } = await pool.query('SELECT elo_private.session_active(NULL::uuid,NULL::uuid) AS active');
+  if (sessionCheck.active !== false) throw new Error('Invalid session verification function');
   console.log('Elo database ready: connection, restricted elo_app role, 14 tables with RLS, session permissions verified.');
 } catch (error) {
   // Never print connection strings, passwords, or arbitrary provider messages.
