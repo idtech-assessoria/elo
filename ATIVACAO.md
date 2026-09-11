@@ -2,7 +2,7 @@
 
 Proprietária solicitada: **idtech.assessoria@gmail.com**. Repositório: **idtech-assessoria/elo**, branch **migration/github-supabase-resend**. Projeto Supabase: **ELO**, referência **jrfmakgafcybhinjkalc**.
 
-O código e o esquema PostgreSQL já estão nos destinos. O login privado `elo_app` e a chave de cifragem foram criados no Supabase em 11/09/2026. Ainda faltam concluir e verificar a publicação do servidor, confirmar a conta Auth, importar a assistência original e configurar o domínio/remetente de e-mail. Esta preparação não significa que o aplicativo esteja pronto para uso operacional.
+O código, o esquema PostgreSQL e o serviço Render já foram criados. O login privado `elo_app` e a chave de cifragem estão configurados no ambiente do servidor. A publicação está bloqueada pela rede: a conexão direta IPv6 do Supabase retornou `ENETUNREACH` no Render. O próximo passo é obter o hostname real de **Supabase > Connect > Session pooler**, atualizar somente `DATABASE_URL` no serviço existente e tentar o deploy novamente. Ainda faltam confirmar a conta Auth, importar a assistência original e configurar o domínio/remetente de e-mail.
 
 ## Hospedagem preparada
 
@@ -52,8 +52,12 @@ Validar HTTPS, login, logout/revogação, assistência original e contato atuali
 
 Em 11/09/2026, o usuário confirmou a publicação gratuita no workspace **My Workspace**, da conta `idtech.assessoria@gmail.com`, ID `tea-dahjohu1egvs738arhcg`. O bloqueio inicial HTTP 400 foi resolvido após a liberação do repositório no GitHub do Render. A criação do serviço `srv-dahlmoqd0e5s73fu2s70` foi concluída e suas variáveis privadas foram configuradas. [Painel do serviço](https://dashboard.render.com/web/srv-dahlmoqd0e5s73fu2s70).
 
-O primeiro deploy, `dep-dahlmpad0e5s73fu3240`, compilou o commit `7b3b4be6b2eec8cfcef7c3cd80b73b6a99ed82b5`, mas falhou na inicialização com `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. O comando de verificação importava construtores com propriedades de parâmetro que o Node não apaga em modo strip-only. A correção usa propriedades explícitas, mantendo o mesmo comportamento do adaptador. O CI passa a executar o comando real de inicialização contra PostgreSQL 17 para cobrir esse caminho.
+O primeiro deploy, `dep-dahlmpad0e5s73fu3240`, compilou o commit `7b3b4be6b2eec8cfcef7c3cd80b73b6a99ed82b5`, mas falhou na inicialização com `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. A correção está no commit `09293b8cc0bdb0c3de03a69525296686640efedb`, com [CI integralmente aprovado](https://github.com/idtech-assessoria/elo/actions/runs/34551786861), incluindo o comando real de inicialização contra PostgreSQL 17. Os construtores agora usam propriedades explícitas compatíveis com o Node.
+
+O segundo deploy, `dep-dahlq91594qs73fid4s0`, compilou essa correção com sucesso. A inicialização avançou até a conexão PostgreSQL e retornou `Elo database preflight failed: ENETUNREACH`. Portanto, o servidor Next.js não foi iniciado e a URL atribuída ainda não disponibiliza o Elo. Não repetir o deploy sem corrigir o endereço da conexão.
 
 Usar o serviço existente nos próximos deploys; não criar duplicata nem gerar novas chaves. Verificar o deploy e a conexão PostgreSQL antes de anunciar que está no ar. A API de criação não expõe `healthCheckPath`; o caminho `/login` do Blueprint ainda precisa ser configurado pelo painel se necessário. O serviço criado usa a verificação TCP padrão.
 
-A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Se a rede do Render exigir IPv4, obter o hostname real de **Connect > Session pooler**. Não desabilitar TLS ou comprar o adicional IPv4 para contornar essa pendência. Resend ainda precisa ser consultado na etapa de e-mail.
+A integração Supabase acessa banco e projeto, mas não expôs administração de usuários, configurações Auth/SMTP ou o endereço do pooler. Solicitar somente o hostname de **Connect > Session pooler**, sem senha. Usar porta `5432`, banco `postgres`, usuário `elo_app.jrfmakgafcybhinjkalc` e a senha existente no Vault. Não desabilitar TLS ou comprar o adicional IPv4 para contornar essa pendência. A conexão final deve passar pela verificação de certificado e permissões antes de liberar o servidor.
+
+Resend foi consultado e contém `idtech.com.br` com verificação `failed`. Os três registros DNS exigidos também estão falhando; os valores retornados pelo provedor estão em [docs/RESEND-DNS.md](docs/RESEND-DNS.md). Nenhum registro DNS ou configuração SMTP foi alterado. Auth permanece sem a conta da proprietária e a assistência original ainda não foi importada.

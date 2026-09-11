@@ -1,5 +1,7 @@
 # Checkpoint — 11/09/2026
 
+Estado mais recente: serviço Render criado, correção de inicialização aprovada no CI e compilada no Render. O deploy permanece bloqueado por `ENETUNREACH` na conexão direta do Supabase. Falta obter o hostname real do **Session pooler** e atualizar a conexão do serviço existente; não criar outro servidor nem regenerar segredos.
+
 ## Origem comprovada
 
 - Backup: `elo-backup-completo-2026-09-10.zip`, SHA-256 `6f14d01974aeefb6b40e6cd22cb82f0bf84f7c3fa3428789eb6dd59eacc0574c`.
@@ -65,3 +67,13 @@
 - As variáveis privadas usam os dois segredos existentes no Vault e a chave publishable habilitada do ELO. `DATABASE_URL` inicialmente usa o host direto IPv6 com login `elo_app`. O UUID da proprietária permanece ausente. Nenhuma chave foi regenerada ou publicada no GitHub.
 - Primeiro deploy `dep-dahlmpad0e5s73fu3240`: build Next.js/TypeScript bem-sucedido; inicialização falhou com `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` no Node 24.21.0 do Render. A falha foi reproduzida localmente, corrigida com propriedades explícitas nos construtores e coberta por uma nova etapa de CI que executa `check:runtime` contra PostgreSQL 17.
 - A importação nativa do adaptador no Node 24 passou após a correção, assim como PostgreSQL/PGlite, lint e TypeScript. A verificação do novo deploy e da conexão externa ao banco permanece pendente.
+
+### Resultado do segundo deploy e próximo passo
+
+- Commit corrigido: `09293b8cc0bdb0c3de03a69525296686640efedb`. [CI aprovado](https://github.com/idtech-assessoria/elo/actions/runs/34551786861), inclusive a nova etapa que executa `npm run check:runtime` com Node 24 e PostgreSQL 17 real. Build, HTTP, lint e demais gates também passaram.
+- Segundo deploy: `dep-dahlq91594qs73fid4s0`, iniciado em `2026-09-11T01:45:08Z`, terminou `update_failed` em `2026-09-11T01:46:43Z`. A compilação passou. O log de inicialização registra `Elo database preflight failed: ENETUNREACH`, sem o erro TypeScript anterior.
+- O host direto do Supabase exige IPv6; o Render não alcançou essa rede. O Supabase conectado não fornece o hostname do pooler. A pessoa titular precisa copiar somente esse hostname em **ELO > Connect > Session pooler**, sem senha. O hostname não deve ser deduzido da região ou testado por tentativa de índices.
+- Após receber o hostname, atualizar `DATABASE_URL` no serviço `srv-dahlmoqd0e5s73fu2s70`, usando porta `5432`, banco `postgres`, usuário `elo_app.jrfmakgafcybhinjkalc` e a senha já guardada no Vault. Preservar verificação TLS. Como o serviço tem auto-deploy desligado, disparar um deploy após a alteração e acompanhar até o resultado. Não reiniciar a migração ou criar duplicata.
+- A URL `https://elo-validacao.onrender.com` foi atribuída pelo Render, mas ainda não foi validada servindo a aplicação: nenhum deploy ficou ativo. O login e a restauração original continuam pendentes.
+- Reconferência do Supabase: zero usuários Auth para a proprietária, zero assistências, `elo_app` com login habilitado. Nenhum dado fictício ou e-mail real foi criado/enviado.
+- Resend agora está acessível: o domínio existente `idtech.com.br` está com verificação `failed`; três registros DNS exigidos também falharam. Consulta e valores registrados em `docs/RESEND-DNS.md`. O provedor DNS do titular ainda precisa ser identificado antes de qualquer alteração. Não houve modificação DNS/SMTP.
